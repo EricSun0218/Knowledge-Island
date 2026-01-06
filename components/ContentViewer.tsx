@@ -325,9 +325,11 @@ const MarkdownRenderer = ({ content }: { content: string }) => {
                 const imgMatch = line.match(/^!\[(.*?)\]\((.*?)\)$/);
                 if (imgMatch) {
                     return (
-                        <div key={idx} className="my-6 rounded-2xl overflow-hidden shadow-sm border border-gray-100">
-                            <img src={imgMatch[2]} alt={imgMatch[1]} className="w-full h-auto object-cover" />
-                            {imgMatch[1] && <p className="text-center text-xs text-gray-400 mt-2 font-medium">{imgMatch[1]}</p>}
+                        <div key={idx} className="my-6">
+                            <div className="rounded-2xl overflow-hidden shadow-sm border border-gray-100">
+                                <img src={imgMatch[2]} alt={imgMatch[1]} className="w-full h-auto object-cover" />
+                            </div>
+                            {imgMatch[1] && <p className="text-center text-xs text-gray-400 mt-3 font-medium">{imgMatch[1]}</p>}
                         </div>
                     );
                 }
@@ -608,27 +610,20 @@ const ContentViewer: React.FC<ContentViewerProps> = ({ file, isLeftSidebarOpen =
           </div>
         );
       case 'pdf':
+        // Adjust width and padding based on sidebar states - unified left/right spacing
+        const pdfSidePadding = isRightSidebarOpen ? 'px-1 md:px-2' : (isLeftSidebarOpen ? 'pl-4 md:pl-6 pr-4 md:pr-6' : 'px-10 md:px-14');
+        const pdfMaxWidth = isRightSidebarOpen ? 'max-w-[calc(100%-20px)]' : 'max-w-[calc(100%-60px)]';
+        const pdfLeftMargin = isLeftSidebarOpen ? 'ml-0' : 'mx-auto';
+        
         return (
-          <div className="flex flex-col h-full bg-white relative">
-             <div className="border-b border-gray-100 px-6 py-3 flex items-center justify-between text-sm text-gray-500 shrink-0">
-                <div className="flex items-center gap-4">
-                    <span className="font-bold text-gray-700 truncate">{removeExtension(file.name)}</span>
-                </div>
-                <a 
-                  href={file.content} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 text-blue-600 hover:text-blue-700 font-bold hover:underline"
-                >
-                  <ExternalLink size={14} />
-                  在新标签页打开
-                </a>
-             </div>
-             <iframe 
-                src={file.content} 
-                className="w-full flex-1 border-none bg-white"
-                title={file.name}
-             />
+          <div className={`${pdfLeftMargin} ${pdfMaxWidth} ${pdfSidePadding} py-4 md:py-6 min-h-full relative`}>
+            <div className="w-full h-[calc(100vh-200px)] rounded-lg overflow-hidden shadow-sm border border-gray-100">
+              <embed 
+                src={`${file.content}#toolbar=1&navpanes=1&scrollbar=1`}
+                className="w-full h-full border-none bg-white"
+                type="application/pdf"
+              />
+            </div>
           </div>
         );
       default:
@@ -650,30 +645,23 @@ const ContentViewer: React.FC<ContentViewerProps> = ({ file, isLeftSidebarOpen =
       {/* Floating Selection Menu */}
       {selection && (
         <div 
-            className="fixed z-50 flex items-center gap-1 p-1.5 bg-gray-900/90 backdrop-blur-xl border border-white/10 shadow-[0_8px_30px_rgba(0,0,0,0.3)] rounded-2xl animate-in fade-in zoom-in-95 duration-200"
+            className="fixed z-50 flex items-center gap-1 p-1.5 bg-white backdrop-blur-xl border border-gray-200 shadow-[0_8px_30px_rgba(0,0,0,0.15)] rounded-2xl animate-in fade-in zoom-in-95 duration-200"
             style={{ left: selection.x, top: selection.y, transform: 'translate(-50%, -100%)' }}
         >
             <button 
-                onClick={handleCopy}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-gray-200 hover:text-white hover:bg-white/10 rounded-xl transition-colors"
-            >
-                <Copy size={13} /> 复制
-            </button>
-            <div className="w-px h-4 bg-white/20 mx-0.5"></div>
-            <button 
                 onClick={handleExplain}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-blue-300 hover:text-blue-200 hover:bg-blue-500/20 rounded-xl transition-colors"
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-xl transition-colors"
             >
                 <MessageCircleQuestion size={13} /> 解释
             </button>
             <button 
                 onClick={handleSummarize}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-emerald-300 hover:text-emerald-200 hover:bg-emerald-500/20 rounded-xl transition-colors"
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-xl transition-colors"
             >
                 <FileOutput size={13} /> 总结
             </button>
             {/* Arrow */}
-            <div className="absolute bottom-[-6px] left-1/2 -translate-x-1/2 w-3 h-3 bg-gray-900/90 rotate-45 border-r border-b border-white/10"></div>
+            <div className="absolute bottom-[-6px] left-1/2 -translate-x-1/2 w-3 h-3 bg-white rotate-45 border-r border-b border-gray-200"></div>
         </div>
       )}
     </div>

@@ -14,6 +14,13 @@ interface FileTreeProps {
 const FileTree: React.FC<FileTreeProps> = ({ files, selectedFileId, onSelect, onToggleFolder, level = 0, theme = 'blue' }) => {
   const isAmber = theme === 'amber';
 
+  // 移除文件扩展名
+  const removeExtension = (fileName: string): string => {
+    const lastDotIndex = fileName.lastIndexOf('.');
+    if (lastDotIndex === -1) return fileName;
+    return fileName.substring(0, lastDotIndex);
+  };
+
   const getIcon = (node: FileNode) => {
     if (node.type === 'folder') {
       const colorClass = isAmber 
@@ -63,7 +70,7 @@ const FileTree: React.FC<FileTreeProps> = ({ files, selectedFileId, onSelect, on
             {!node.type && <span className="w-3.5" />} {/* Spacer for non-folders */}
             
             <span className="shrink-0">{getIcon(node)}</span>
-            <span className="truncate">{node.name}</span>
+            <span className="truncate">{node.type === 'folder' ? node.name : removeExtension(node.name)}</span>
           </div>
           
           {node.type === 'folder' && node.isOpen && node.children && (

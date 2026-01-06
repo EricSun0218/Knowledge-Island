@@ -234,6 +234,13 @@ const AIChat: React.FC<AIChatProps> = ({ currentFile, fileTreeData, onClose, onN
     return context;
   };
 
+  // 移除文件扩展名
+  const removeExtension = (fileName: string): string => {
+    const lastDotIndex = fileName.lastIndexOf('.');
+    if (lastDotIndex === -1) return fileName;
+    return fileName.substring(0, lastDotIndex);
+  };
+
   // Parse text to render citations
   const renderMessageText = (text: string) => {
     // Regex to match [[FileName]]
@@ -246,6 +253,7 @@ const AIChat: React.FC<AIChatProps> = ({ currentFile, fileTreeData, onClose, onN
         const fileNode = findFileByName(fileTreeData, fileName);
         citationIndex++;
         const currentCitationIndex = citationIndex;
+        const displayName = removeExtension(fileName);
         
         if (fileNode) {
           return (
@@ -258,14 +266,14 @@ const AIChat: React.FC<AIChatProps> = ({ currentFile, fileTreeData, onClose, onN
                   onNavigateToFile(fileNode.id);
                 }}
                 className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-blue-50 hover:bg-blue-100 text-blue-600 hover:text-blue-700 transition-all text-[11px] font-bold cursor-pointer hover:scale-110 active:scale-95 border border-blue-200/60 hover:border-blue-300 shadow-sm hover:shadow-md"
-                title={fileName}
+                title={displayName}
               >
                 {currentCitationIndex}
               </button>
               
               {/* 悬停时显示的文件名提示 */}
               <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 px-3 py-1.5 bg-gray-900/95 text-white text-xs font-medium rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-200 z-50 backdrop-blur-sm shadow-xl transform translate-y-1 group-hover:translate-y-0">
-                {fileName}
+                {displayName}
                 <div className="absolute left-1/2 -translate-x-1/2 top-full w-0 h-0 border-l-[6px] border-r-[6px] border-t-[6px] border-transparent border-t-gray-900/95"></div>
               </div>
             </span>
@@ -273,7 +281,7 @@ const AIChat: React.FC<AIChatProps> = ({ currentFile, fileTreeData, onClose, onN
         }
         // If file not found in tree
         return (
-          <span key={index} className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-gray-100 text-gray-500 text-[10px] font-bold mx-0.5" title={fileName}>
+          <span key={index} className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-gray-100 text-gray-500 text-[10px] font-bold mx-0.5" title={displayName}>
             {citationIndex}
           </span>
         );

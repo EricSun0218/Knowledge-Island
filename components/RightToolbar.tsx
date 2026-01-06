@@ -26,9 +26,9 @@ const RightToolbar: React.FC<RightToolbarProps> = ({
   };
 
   return (
-    <div className={`flex flex-col gap-4 ${className}`}>
+    <div className={`flex flex-col gap-5 ${className}`}>
        {/* AI Chat Toggle */}
-       <div className="relative group">
+       <div className="flex flex-col items-center gap-1.5">
           <button 
             onClick={onToggleChat}
             className={`
@@ -41,56 +41,50 @@ const RightToolbar: React.FC<RightToolbarProps> = ({
           >
             {isChatOpen ? <PanelRightClose size={22} /> : <Bot size={22} />}
           </button>
-          <div className="absolute right-full top-1/2 -translate-y-1/2 mr-4 px-3 py-1.5 bg-gray-900/90 text-white text-xs font-bold rounded-xl opacity-0 group-hover:opacity-100 pointer-events-none transition-all transform translate-x-2 group-hover:translate-x-0 whitespace-nowrap z-50 backdrop-blur">
-             {isChatOpen ? '关闭 AI 聊天' : '询问 AI 伴侣'}
-          </div>
+          <span className="text-[10px] font-bold text-gray-600 whitespace-nowrap">
+            {isChatOpen ? '关闭' : '问问 AI'}
+          </span>
        </div>
 
        {/* Tools Separator */}
        <div className="h-px w-8 bg-gray-200/50 mx-auto my-1" />
 
        {/* Summary Tool */}
-       <div className="relative group">
+       <div className="flex flex-col items-center gap-1.5">
             <button 
                 onClick={onSummary}
                 className="w-12 h-12 rounded-2xl bg-white text-violet-500 hover:bg-white hover:text-violet-600 hover:scale-110 border border-white/50 flex items-center justify-center transition-all duration-300 shadow-[0_8px_20px_rgba(0,0,0,0.08)] hover:shadow-violet-100 active:scale-95"
             >
                 <FileText size={20} />
             </button>
-            <div className="absolute right-full top-1/2 -translate-y-1/2 mr-4 px-3 py-1.5 bg-gray-900/90 text-white text-xs font-bold rounded-xl opacity-0 group-hover:opacity-100 pointer-events-none transition-all transform translate-x-2 group-hover:translate-x-0 whitespace-nowrap z-50 backdrop-blur">
-                生成摘要
-            </div>
+            <span className="text-[10px] font-bold text-gray-600 whitespace-nowrap">AI 总结</span>
        </div>
 
        {/* Mind Map Tool */}
-       <div className="relative group">
+       <div className="flex flex-col items-center gap-1.5">
             <button 
                 onClick={onMindMap}
                 className="w-12 h-12 rounded-2xl bg-white text-emerald-500 hover:bg-white hover:text-emerald-600 hover:scale-110 border border-white/50 flex items-center justify-center transition-all duration-300 shadow-[0_8px_20px_rgba(0,0,0,0.08)] hover:shadow-emerald-100 active:scale-95"
             >
                 <Network size={20} />
             </button>
-             <div className="absolute right-full top-1/2 -translate-y-1/2 mr-4 px-3 py-1.5 bg-gray-900/90 text-white text-xs font-bold rounded-xl opacity-0 group-hover:opacity-100 pointer-events-none transition-all transform translate-x-2 group-hover:translate-x-0 whitespace-nowrap z-50 backdrop-blur">
-                创建思维导图
-            </div>
+            <span className="text-[10px] font-bold text-gray-600 whitespace-nowrap">思维导图</span>
        </div>
 
        {/* Podcast Tool */}
        {onPodcast && (
-           <div className="relative group">
+           <div className="flex flex-col items-center gap-1.5">
                 <button 
                     onClick={onPodcast}
                     className="w-12 h-12 rounded-2xl bg-white text-orange-500 hover:bg-white hover:text-orange-600 hover:scale-110 border border-white/50 flex items-center justify-center transition-all duration-300 shadow-[0_8px_20px_rgba(0,0,0,0.08)] hover:shadow-orange-100 active:scale-95"
                 >
                     <Radio size={20} />
                 </button>
-                 <div className="absolute right-full top-1/2 -translate-y-1/2 mr-4 px-3 py-1.5 bg-gray-900/90 text-white text-xs font-bold rounded-xl opacity-0 group-hover:opacity-100 pointer-events-none transition-all transform translate-x-2 group-hover:translate-x-0 whitespace-nowrap z-50 backdrop-blur">
-                    生成播客
-                </div>
+                <span className="text-[10px] font-bold text-gray-600 whitespace-nowrap">AI 播客</span>
            </div>
        )}
 
-       {/* Scroll to Top */}
+       {/* Scroll to Top - 保持原样，只有悬停提示 */}
        <div className="relative group">
             <button 
                 onClick={handleScrollTop}

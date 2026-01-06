@@ -362,6 +362,13 @@ const MarkdownRenderer = ({ content }: { content: string }) => {
 }
 
 const ContentViewer: React.FC<ContentViewerProps> = ({ file }) => {
+  // 移除文件扩展名
+  const removeExtension = (fileName: string): string => {
+    const lastDotIndex = fileName.lastIndexOf('.');
+    if (lastDotIndex === -1) return fileName;
+    return fileName.substring(0, lastDotIndex);
+  };
+
   // Text Selection State
   const [selection, setSelection] = useState<{ x: number; y: number; text: string } | null>(null);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -454,7 +461,7 @@ const ContentViewer: React.FC<ContentViewerProps> = ({ file }) => {
           // Modified: Seamless white background, removed card styling
           <div className="max-w-4xl mx-auto p-10 md:p-14 min-h-full relative">
             <div className="flex justify-between items-start mb-2">
-                <div className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">正在阅读: {file.name}</div>
+                <div className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">正在阅读: {removeExtension(file.name)}</div>
             </div>
             
             {/* Inject TTS Player here for text files */}
@@ -477,7 +484,7 @@ const ContentViewer: React.FC<ContentViewerProps> = ({ file }) => {
                 />
             </div>
             <p className="mt-6 text-sm text-gray-500 font-bold flex items-center gap-2 px-4 py-2">
-                <ImageIcon size={16} className="text-blue-600" /> {file.name}
+                <ImageIcon size={16} className="text-blue-600" /> {removeExtension(file.name)}
             </p>
           </div>
         );
@@ -490,7 +497,7 @@ const ContentViewer: React.FC<ContentViewerProps> = ({ file }) => {
                 </video>
              </div>
              <p className="mt-8 text-gray-500 font-bold flex items-center gap-2 px-4 py-2">
-                <Film size={16} className="text-blue-600" /> {file.name}
+                <Film size={16} className="text-blue-600" /> {removeExtension(file.name)}
              </p>
           </div>
         );
@@ -501,7 +508,7 @@ const ContentViewer: React.FC<ContentViewerProps> = ({ file }) => {
                 <div className="w-32 h-32 bg-gray-200 rounded-full flex items-center justify-center mb-8 text-gray-400">
                     <Music size={56} />
                 </div>
-                <h2 className="text-2xl font-extrabold text-gray-900 mb-2 text-center">{file.name}</h2>
+                <h2 className="text-2xl font-extrabold text-gray-900 mb-2 text-center">{removeExtension(file.name)}</h2>
                 <p className="text-sm text-gray-500 mb-10 font-medium">音频播放</p>
                 <audio controls className="w-full accent-blue-600" src={file.content}>
                     Your browser does not support the audio element.
@@ -514,7 +521,7 @@ const ContentViewer: React.FC<ContentViewerProps> = ({ file }) => {
           <div className="flex flex-col h-full bg-white relative">
              <div className="border-b border-gray-100 px-6 py-3 flex items-center justify-between text-sm text-gray-500 shrink-0">
                 <div className="flex items-center gap-4">
-                    <span className="font-bold text-gray-700 truncate">{file.name}</span>
+                    <span className="font-bold text-gray-700 truncate">{removeExtension(file.name)}</span>
                 </div>
                 <a 
                   href={file.content} 

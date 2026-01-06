@@ -1,5 +1,4 @@
 import React from 'react';
-import { Flag } from 'lucide-react';
 import { User, CreatorProfile } from '../types';
 
 interface HeaderProps {
@@ -15,13 +14,13 @@ const Header: React.FC<HeaderProps> = ({ user, onUserClick }) => {
     <header className="h-16 bg-white border-b border-gray-100 flex items-center justify-between px-6 shrink-0 z-20 relative select-none">
       
       {/* Left Side: Product Branding */}
-      <div className="flex items-center gap-3 flex-1 min-w-0">
-          {/* Logo */}
-          <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-blue-200 shrink-0">
-              <Flag size={20} fill="currentColor" strokeWidth={2} />
-          </div>
-          
-          <span className="text-xl font-black text-blue-900 tracking-tight">Knowledge Island</span>
+      <div className="flex items-center flex-1 min-w-0">
+          {/* Logo - PNG 图片 */}
+          <img 
+            src="/logo.png" 
+            alt="知识岛" 
+            className="h-16 w-auto object-contain"
+          />
       </div>
 
       {/* Right Side: User Profile */}

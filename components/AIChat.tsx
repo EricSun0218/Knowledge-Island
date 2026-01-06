@@ -238,27 +238,45 @@ const AIChat: React.FC<AIChatProps> = ({ currentFile, fileTreeData, onClose, onN
   const renderMessageText = (text: string) => {
     // Regex to match [[FileName]]
     const parts = text.split(/(\[\[.*?\]\])/g);
+    let citationIndex = 0;
     
     return parts.map((part, index) => {
       if (part.startsWith('[[') && part.endsWith(']]')) {
         const fileName = part.slice(2, -2);
         const fileNode = findFileByName(fileTreeData, fileName);
+        citationIndex++;
+        const currentCitationIndex = citationIndex;
         
         if (fileNode) {
           return (
-            <span key={index} className="inline-flex items-center align-baseline relative group mx-1">
-                <button 
-                  onClick={() => onNavigateToFile(fileNode.id)}
-                  className="inline-flex items-center gap-1 px-2.5 py-1 bg-blue-50 border border-blue-200 text-blue-700 rounded-lg hover:bg-blue-100 hover:shadow-sm transition-all text-xs font-bold transform hover:-translate-y-0.5"
-                >
-                  <LinkIcon size={10} />
-                  {fileName}
-                </button>
+            <span key={index} className="inline-flex items-center align-baseline relative group mx-0.5">
+              {/* 引用符号 - 默认显示 */}
+              <button 
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onNavigateToFile(fileNode.id);
+                }}
+                className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-blue-50 hover:bg-blue-100 text-blue-600 hover:text-blue-700 transition-all text-[11px] font-bold cursor-pointer hover:scale-110 active:scale-95 border border-blue-200/60 hover:border-blue-300 shadow-sm hover:shadow-md"
+                title={fileName}
+              >
+                {currentCitationIndex}
+              </button>
+              
+              {/* 悬停时显示的文件名提示 */}
+              <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 px-3 py-1.5 bg-gray-900/95 text-white text-xs font-medium rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-200 z-50 backdrop-blur-sm shadow-xl transform translate-y-1 group-hover:translate-y-0">
+                {fileName}
+                <div className="absolute left-1/2 -translate-x-1/2 top-full w-0 h-0 border-l-[6px] border-r-[6px] border-t-[6px] border-transparent border-t-gray-900/95"></div>
+              </div>
             </span>
           );
         }
         // If file not found in tree
-        return <span key={index} className="text-xs font-bold text-gray-500 mx-0.5">{fileName}</span>;
+        return (
+          <span key={index} className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-gray-100 text-gray-500 text-[10px] font-bold mx-0.5" title={fileName}>
+            {citationIndex}
+          </span>
+        );
       }
       return <span key={index}>{part}</span>;
     });
@@ -334,9 +352,9 @@ const AIChat: React.FC<AIChatProps> = ({ currentFile, fileTreeData, onClose, onN
   );
 
   return (
-    <div className="flex flex-col h-full relative bg-white">
-      {/* Header - Seamless White */}
-      <div className="px-6 py-5 flex items-center justify-between bg-white z-20 shrink-0 sticky top-0">
+    <div className="flex flex-col h-full relative bg-transparent">
+      {/* Header - Enhanced Design */}
+      <div className="px-6 py-5 flex items-center justify-between bg-white/80 backdrop-blur-xl border-b border-gray-100/60 z-20 shrink-0 sticky top-0 shadow-sm">
         <div className="flex items-center gap-3">
            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${isVoiceMode ? 'bg-green-500 shadow-[0_0_15px_rgba(34,197,94,0.4)]' : 'bg-blue-500 shadow-md'}`}>
               <Bot size={14} className="text-white" />
@@ -348,7 +366,7 @@ const AIChat: React.FC<AIChatProps> = ({ currentFile, fileTreeData, onClose, onN
         </div>
         <button 
           onClick={onClose}
-          className="text-gray-400 hover:text-gray-600 transition-colors bg-gray-50 hover:bg-gray-100 p-2 rounded-full"
+          className="text-gray-400 hover:text-gray-700 transition-all bg-gray-50/80 hover:bg-gray-100/90 p-2 rounded-full hover:scale-105 active:scale-95 shadow-sm hover:shadow-md"
         >
           <X size={16} />
         </button>
@@ -399,37 +417,70 @@ const AIChat: React.FC<AIChatProps> = ({ currentFile, fileTreeData, onClose, onN
       )}
 
       {/* Messages Area */}
-      <div className="flex-1 overflow-y-auto p-5 space-y-6 bg-transparent">
+      <div className="flex-1 overflow-y-auto bg-gradient-to-b from-transparent via-transparent to-gray-50/20">
         {messages.map((msg) => (
           <div 
             key={msg.id} 
-            className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-in slide-in-from-bottom-2 duration-300`}
+            className={`animate-in slide-in-from-bottom-2 duration-300 ${
+              msg.role === 'user' 
+                ? 'flex justify-end px-5 py-4' 
+                : 'w-full'
+            }`}
           >
-            <div className={`
-              max-w-[88%] px-5 py-3.5 text-sm leading-relaxed
-              ${msg.role === 'user' 
-                ? 'bg-blue-100 border border-blue-200 text-slate-900 rounded-[1.25rem] rounded-br-[2px] shadow-sm font-medium' 
-                : 'bg-white text-gray-800 rounded-[1.25rem] rounded-bl-[2px] shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-gray-200'}
-            `}>
-              {msg.role === 'user' ? msg.text : renderMessageText(msg.text)}
-            </div>
+            {msg.role === 'user' ? (
+              // 用户消息：保持聊天气泡形式
+              <div className="max-w-[88%] px-5 py-3.5 text-sm leading-relaxed bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-[1.25rem] rounded-br-[2px] shadow-lg shadow-blue-500/25 font-medium">
+                {msg.text}
+              </div>
+            ) : (
+              // AI 消息：类似 Gemini/ChatGPT 的显示形式
+              <div className="w-full border-b border-gray-100/40 hover:bg-gray-50/50 transition-colors group">
+                <div className="px-6 py-6 max-w-none">
+                  <div className="flex gap-4">
+                    {/* AI 图标 */}
+                    <div className="flex-shrink-0">
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-sm group-hover:shadow-md transition-shadow">
+                        <Bot size={16} className="text-white" />
+                      </div>
+                    </div>
+                    {/* 消息内容 */}
+                    <div className="flex-1 min-w-0 pt-0.5">
+                      <div className="text-[15px] leading-7 text-gray-800 whitespace-pre-wrap">
+                        {renderMessageText(msg.text)}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         ))}
         {isLoading && (
-          <div className="flex justify-start">
-             <div className="bg-white border border-gray-200 rounded-[1.25rem] rounded-bl-[2px] px-5 py-3.5 shadow-sm flex gap-1">
-                <div className="w-2 h-2 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: '0ms' }}></div>
-                <div className="w-2 h-2 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: '150ms' }}></div>
-                <div className="w-2 h-2 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: '300ms' }}></div>
-             </div>
+          <div className="w-full border-b border-gray-100/60">
+            <div className="px-6 py-5">
+              <div className="flex gap-4">
+                {/* AI 图标 */}
+                <div className="flex-shrink-0">
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-sm">
+                    <Bot size={16} className="text-white" />
+                  </div>
+                </div>
+                {/* 加载动画 */}
+                <div className="flex-1 flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                  <div className="w-2 h-2 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                  <div className="w-2 h-2 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                </div>
+              </div>
+            </div>
           </div>
         )}
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input Area (Seamless White) */}
-      <div className="p-6 bg-white shrink-0 z-20">
-        <div className="flex items-center gap-2 bg-gray-100 rounded-full pl-5 pr-2 py-2 border border-transparent shadow-inner focus-within:bg-white focus-within:border-blue-300 focus-within:shadow-xl focus-within:shadow-blue-500/10 transition-all duration-300 group ring-1 ring-transparent focus-within:ring-blue-100">
+      {/* Input Area - Enhanced Design */}
+      <div className="p-6 bg-white/90 backdrop-blur-xl border-t border-gray-100/60 shrink-0 z-20 shadow-[0_-2px_12px_-2px_rgba(0,0,0,0.04)]">
+        <div className="flex items-center gap-2 bg-gray-50/80 rounded-full pl-5 pr-2 py-2.5 border border-gray-200/60 shadow-sm focus-within:bg-white focus-within:border-blue-400 focus-within:shadow-lg focus-within:shadow-blue-500/15 transition-all duration-300 group ring-1 ring-transparent focus-within:ring-blue-200/50">
           <input
             type="text"
             className="flex-1 bg-transparent border-none focus:outline-none text-sm text-gray-800 placeholder-gray-500 font-medium h-9"

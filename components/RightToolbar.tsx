@@ -1,11 +1,12 @@
 import React from 'react';
-import { FileText, Network, PanelRightClose, Bot, ArrowUp } from 'lucide-react';
+import { FileText, Network, PanelRightClose, Bot, ArrowUp, Radio } from 'lucide-react';
 
 interface RightToolbarProps {
   isChatOpen: boolean;
   onToggleChat: () => void;
   onSummary: () => void;
   onMindMap: () => void;
+  onPodcast?: () => void;
   className?: string;
 }
 
@@ -14,6 +15,7 @@ const RightToolbar: React.FC<RightToolbarProps> = ({
   onToggleChat, 
   onSummary, 
   onMindMap,
+  onPodcast,
   className = ""
 }) => {
   const handleScrollTop = () => {
@@ -72,6 +74,21 @@ const RightToolbar: React.FC<RightToolbarProps> = ({
                 创建思维导图
             </div>
        </div>
+
+       {/* Podcast Tool */}
+       {onPodcast && (
+           <div className="relative group">
+                <button 
+                    onClick={onPodcast}
+                    className="w-12 h-12 rounded-2xl bg-white text-orange-500 hover:bg-white hover:text-orange-600 hover:scale-110 border border-white/50 flex items-center justify-center transition-all duration-300 shadow-[0_8px_20px_rgba(0,0,0,0.08)] hover:shadow-orange-100 active:scale-95"
+                >
+                    <Radio size={20} />
+                </button>
+                 <div className="absolute right-full top-1/2 -translate-y-1/2 mr-4 px-3 py-1.5 bg-gray-900/90 text-white text-xs font-bold rounded-xl opacity-0 group-hover:opacity-100 pointer-events-none transition-all transform translate-x-2 group-hover:translate-x-0 whitespace-nowrap z-50 backdrop-blur">
+                    生成播客
+                </div>
+           </div>
+       )}
 
        {/* Scroll to Top */}
        <div className="relative group">

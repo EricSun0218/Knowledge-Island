@@ -102,6 +102,7 @@ function App() {
   // Placeholder actions
   const handleAISummary = () => alert("AI 摘要生成中... (演示)");
   const handleAIMindMap = () => alert("正在生成思维导图... (演示)");
+  const handleAIPodcast = () => alert("正在生成播客... (演示)");
 
   return (
     <div className="flex flex-col h-screen text-gray-800 bg-white">
@@ -213,97 +214,96 @@ function App() {
                         <div 
                             className={`
                                 relative h-full flex flex-col transition-all duration-700 ease-[cubic-bezier(0.32,0.72,0,1)]
-                                ${isLeftSidebarOpen ? 'w-full max-w-5xl' : 'w-full max-w-6xl'}
+                                ${isLeftSidebarOpen && isRightSidebarOpen ? 'w-full max-w-4xl' : isLeftSidebarOpen ? 'w-full max-w-5xl' : isRightSidebarOpen ? 'w-full max-w-5xl' : 'w-full max-w-6xl'}
                             `}
                         >
-                            {/* 
-                                TABLE OF CONTENTS (TOC) 
-                                Visual style: Static lines (no hover effect on lines themselves).
-                                Interaction: Hovering area shows the white popover.
-                            */}
-                            {headings.length > 0 && (
-                                <div className="absolute right-full mr-6 top-0 h-full flex flex-col items-center justify-center z-20 pointer-events-none animate-fadeIn">
-                                    <div 
-                                        className="relative pointer-events-auto"
-                                        onMouseEnter={() => setShowOutlinePopover(true)}
-                                        onMouseLeave={() => setShowOutlinePopover(false)}
-                                    >
-                                        {/* 
-                                            The Popover Window (White + Shadow) 
-                                        */}
+                            {/* Main Content Area */}
+                            <div className="flex-1 h-full bg-white transition-all duration-500 relative">
+                                <ContentViewer file={selectedFile} />
+                                
+                                {/* TOC - 相对于内容区域定位 */}
+                                {headings.length > 0 && !isLeftSidebarOpen && (
+                                    <div className="absolute -left-4 top-0 h-full flex flex-col items-center justify-center z-20 pointer-events-none animate-fadeIn">
                                         <div 
-                                            className={`
-                                                absolute left-full top-1/2 -translate-y-1/2 ml-4 w-64
-                                                bg-white border border-gray-100 shadow-[0_20px_40px_-12px_rgba(0,0,0,0.15)]
-                                                rounded-2xl p-5
-                                                transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] origin-left z-50
-                                                ${showOutlinePopover 
-                                                    ? 'opacity-100 translate-x-0 scale-100 visible' 
-                                                    : 'opacity-0 -translate-x-4 scale-95 invisible'
-                                                }
-                                            `}
+                                            className="relative pointer-events-auto"
+                                            onMouseEnter={() => setShowOutlinePopover(true)}
+                                            onMouseLeave={() => setShowOutlinePopover(false)}
                                         >
-                                            <h4 className="text-xs font-extrabold text-gray-400 uppercase tracking-widest mb-4">目录</h4>
-                                            <div className="space-y-1 max-h-[60vh] overflow-y-auto no-scrollbar">
-                                                {headings.map(h => (
-                                                    <button 
-                                                        key={h.id}
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            handleScrollToHeading(h.id);
-                                                            setShowOutlinePopover(false);
-                                                        }}
-                                                        className={`
-                                                            block w-full text-left text-sm py-1.5 px-3 rounded-lg transition-colors truncate border border-transparent
-                                                            ${h.level === 1 ? 'font-bold text-gray-900 hover:bg-gray-50' : 'text-gray-500 font-medium hover:text-gray-900 hover:bg-gray-50'}
-                                                            ${h.level === 2 ? 'pl-4 text-[13px]' : ''}
-                                                            ${h.level >= 3 ? 'pl-7 text-xs' : ''}
-                                                        `}
+                                            {/* 
+                                                The Popover Window (White + Shadow) 
+                                            */}
+                                            <div 
+                                                className={`
+                                                    absolute left-full top-1/2 -translate-y-1/2 ml-4 w-64
+                                                    bg-white border border-gray-100 shadow-[0_20px_40px_-12px_rgba(0,0,0,0.15)]
+                                                    rounded-2xl p-5
+                                                    transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] origin-left z-50
+                                                    ${showOutlinePopover 
+                                                        ? 'opacity-100 translate-x-0 scale-100 visible' 
+                                                        : 'opacity-0 -translate-x-4 scale-95 invisible'
+                                                    }
+                                                `}
+                                            >
+                                                <h4 className="text-xs font-extrabold text-gray-400 uppercase tracking-widest mb-4">目录</h4>
+                                                <div className="space-y-1 max-h-[60vh] overflow-y-auto no-scrollbar">
+                                                    {headings.map(h => (
+                                                        <button 
+                                                            key={h.id}
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleScrollToHeading(h.id);
+                                                                setShowOutlinePopover(false);
+                                                            }}
+                                                            className={`
+                                                                block w-full text-left text-sm py-1.5 px-3 rounded-lg transition-colors truncate border border-transparent
+                                                                ${h.level === 1 ? 'font-bold text-gray-900 hover:bg-gray-50' : 'text-gray-500 font-medium hover:text-gray-900 hover:bg-gray-50'}
+                                                                ${h.level === 2 ? 'pl-4 text-[13px]' : ''}
+                                                                ${h.level >= 3 ? 'pl-7 text-xs' : ''}
+                                                            `}
+                                                        >
+                                                            {h.text}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
+
+                                            {/* 
+                                                The Lines Strip (Static Appearance) 
+                                            */}
+                                            <div className="flex flex-col gap-3 py-12 px-8 -mr-4 cursor-pointer">
+                                                {headings.map((h) => (
+                                                    <div 
+                                                        key={h.id} 
+                                                        className="flex justify-end items-center h-2"
+                                                        onClick={() => handleScrollToHeading(h.id)}
                                                     >
-                                                        {h.text}
-                                                    </button>
+                                                        <div className={`
+                                                            rounded-full h-[3px] shadow-sm
+                                                            ${h.level === 1 ? 'w-10 bg-slate-300' : ''}
+                                                            ${h.level === 2 ? 'w-6 bg-slate-200' : ''}
+                                                            ${h.level >= 3 ? 'w-3 bg-slate-100' : ''}
+                                                        `} />
+                                                    </div>
                                                 ))}
                                             </div>
                                         </div>
-
-                                        {/* 
-                                            The Lines Strip (Static Appearance) 
-                                            Removed group-hover effects and showOutlinePopover conditions for styling.
-                                        */}
-                                        <div className="flex flex-col gap-3 py-12 px-8 -mr-4 cursor-pointer">
-                                            {headings.map((h) => (
-                                                <div 
-                                                    key={h.id} 
-                                                    className="flex justify-end items-center h-2"
-                                                    onClick={() => handleScrollToHeading(h.id)}
-                                                >
-                                                    <div className={`
-                                                        rounded-full h-[3px] shadow-sm
-                                                        ${h.level === 1 ? 'w-10 bg-slate-300' : ''}
-                                                        ${h.level === 2 ? 'w-6 bg-slate-200' : ''}
-                                                        ${h.level >= 3 ? 'w-3 bg-slate-100' : ''}
-                                                    `} />
-                                                </div>
-                                            ))}
-                                        </div>
                                     </div>
-                                </div>
-                            )}
-
-                            {/* Main Content Area */}
-                            <div className="flex-1 h-full bg-white transition-all duration-500">
-                                <ContentViewer file={selectedFile} />
+                                )}
+                                
+                                {/* Right Toolbar - 相对于内容区域定位 */}
+                                {!isRightSidebarOpen && (
+                                    <div className="absolute -right-4 top-1/2 -translate-y-1/2 z-40 hidden xl:block animate-fadeIn">
+                                        <RightToolbar 
+                                            isChatOpen={isRightSidebarOpen}
+                                            onToggleChat={() => setIsRightSidebarOpen(!isRightSidebarOpen)}
+                                            onSummary={handleAISummary}
+                                            onMindMap={handleAIMindMap}
+                                            onPodcast={handleAIPodcast}
+                                        />
+                                    </div>
+                                )}
                             </div>
 
-                            {/* Right Toolbar */}
-                            <div className="absolute left-full top-1/2 -translate-y-1/2 ml-8 z-40 hidden xl:block animate-fadeIn">
-                                <RightToolbar 
-                                    isChatOpen={isRightSidebarOpen}
-                                    onToggleChat={() => setIsRightSidebarOpen(!isRightSidebarOpen)}
-                                    onSummary={handleAISummary}
-                                    onMindMap={handleAIMindMap}
-                                />
-                            </div>
                         </div>
                     ) : readerView === 'creatorProfile' ? (
                         <div className="w-full h-full bg-white">
@@ -326,29 +326,31 @@ function App() {
                     )}
                 </section>
                 
-                {/* Chat Window */}
+                {/* RIGHT SIDEBAR - AI Chat */}
                 {readerView === 'dashboard' && (
-                    <div 
+                    <aside 
                         className={`
-                        fixed top-24 bottom-8 right-8 z-50
-                        w-[28rem] max-w-[calc(100vw-4rem)]
-                        bg-white border border-gray-100 shadow-2xl
-                        rounded-[2rem] overflow-hidden flex flex-col
-                        transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)]
+                        flex flex-col z-30
+                        bg-white border-l border-gray-200/60
+                        rounded-[2.5rem] overflow-hidden shrink-0
+                        transition-[width,transform,opacity,margin,box-shadow] duration-700 ease-[cubic-bezier(0.32,0.72,0,1)]
                         ${isRightSidebarOpen 
-                            ? 'translate-x-0 opacity-100 pointer-events-auto scale-100' 
-                            : 'translate-x-[20%] opacity-0 pointer-events-none scale-95'
+                            ? 'w-[28rem] opacity-100 translate-x-0 shadow-[0_-4px_24px_-2px_rgba(0,0,0,0.08),0_0_0_1px_rgba(0,0,0,0.02)]' 
+                            : 'w-0 opacity-0 translate-x-10 shadow-none'
                         }
                         `}
                     >
-                        <AIChat 
-                            currentFile={selectedFile} 
-                            fileTreeData={files} 
-                            onClose={() => setIsRightSidebarOpen(false)}
-                            onNavigateToFile={(id) => setSelectedFileId(id)}
-                            isOpen={isRightSidebarOpen}
-                        />
-                    </div>
+                        {/* Fixed Width Inner Container */}
+                        <div className="w-[28rem] h-full flex flex-col min-w-[28rem] bg-gradient-to-b from-white to-gray-50/30">
+                            <AIChat 
+                                currentFile={selectedFile} 
+                                fileTreeData={files} 
+                                onClose={() => setIsRightSidebarOpen(false)}
+                                onNavigateToFile={(id) => setSelectedFileId(id)}
+                                isOpen={isRightSidebarOpen}
+                            />
+                        </div>
+                    </aside>
                 )}
             </>
         )}

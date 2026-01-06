@@ -13,7 +13,12 @@ import { PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 
 function App() {
   // Global App Mode: 'reader' (Learner) or 'creator' (Sharer)
-  const [appMode, setAppMode] = useState<'reader' | 'creator'>('reader');
+  const getInitialMode = (): 'reader' | 'creator' => {
+    if (typeof window === 'undefined') return 'reader';
+    const params = new URLSearchParams(window.location.search);
+    return params.get('mode') === 'creator' ? 'creator' : 'reader';
+  };
+  const [appMode, setAppMode] = useState<'reader' | 'creator'>(() => getInitialMode());
   
   // Reader Mode States
   const [isLeftSidebarOpen, setIsLeftSidebarOpen] = useState(true);
@@ -320,7 +325,11 @@ function App() {
                                 items={PURCHASED_ITEMS}
                                 onBack={() => setReaderView('dashboard')}
                                 onSelectKnowledge={() => setReaderView('dashboard')}
-                                onSwitchToCreator={() => setAppMode('creator')}
+                                onSwitchToCreator={() => {
+                                  const url = new URL(window.location.href);
+                                  url.searchParams.set('mode', 'creator');
+                                  window.open(url.toString(), '_blank', 'noopener,noreferrer');
+                                }}
                             />
                         </div>
                     )}

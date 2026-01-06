@@ -52,11 +52,12 @@ const UserProfilePage: React.FC<UserProfilePageProps> = ({ user, items, onBack, 
             <div className="flex-1 flex flex-col gap-4 min-h-0">
                 
                 {/* WIDGET 1: VIP & Wallet (Flex-1 to expand) */}
-                <div className="flex-1 relative overflow-hidden rounded-[2.5rem] p-8 bg-[#FFFCF5] border border-amber-100/60 shadow-[0_8px_20px_-6px_rgba(251,191,36,0.08)] group hover:scale-[1.02] transition-transform duration-500 ease-out flex flex-col justify-between">
+                <div className="flex-1 relative overflow-hidden rounded-[2.5rem] p-8 bg-gradient-to-br from-amber-50 via-white to-amber-100/40 border border-amber-200/50 shadow-[0_20px_50px_-30px_rgba(251,191,36,0.45)] ring-1 ring-amber-200/40 group hover:scale-[1.02] transition-transform duration-500 ease-out flex flex-col justify-between">
                     {/* Background Decor */}
-                    <div className="absolute -right-8 -top-8 text-amber-500/5 transform rotate-12 group-hover:rotate-6 transition-transform duration-1000 ease-in-out">
-                         <Crown size={180} strokeWidth={1.5} />
+                    <div className="absolute -right-6 -top-6 text-amber-500/6 transform rotate-12 group-hover:rotate-6 transition-transform duration-1000 ease-in-out">
+                         <Crown size={120} strokeWidth={1.5} />
                     </div>
+                    <div className="absolute -left-10 bottom-6 w-32 h-32 rounded-full bg-amber-200/20 blur-2xl" />
                     
                     <div className="relative z-10 flex flex-col gap-4">
                         <div className="flex justify-between items-start">
@@ -66,7 +67,7 @@ const UserProfilePage: React.FC<UserProfilePageProps> = ({ user, items, onBack, 
                                         <Crown size={12} strokeWidth={3} /> {user.membershipTier}
                                     </span>
                                 </div>
-                                <span className="text-[10px] text-amber-900/40 font-bold ml-1">有效期至 {user.membershipExpiresAt}</span>
+                                <span className="text-[10px] text-amber-900/45 font-bold ml-1">有效期至 {user.membershipExpiresAt}</span>
                             </div>
                             <button className="w-10 h-10 rounded-full bg-white/60 hover:bg-white border border-amber-100/50 flex items-center justify-center text-amber-400 hover:text-amber-600 transition-all shadow-sm active:scale-95">
                                 <History size={16} />
@@ -74,16 +75,16 @@ const UserProfilePage: React.FC<UserProfilePageProps> = ({ user, items, onBack, 
                         </div>
 
                         <div>
-                            <div className="text-xs font-extrabold text-amber-900/30 uppercase tracking-widest mb-1 pl-1">钱包余额</div>
-                            <div className="flex items-baseline gap-1.5">
-                                <span className="text-5xl font-black text-gray-900 tracking-tighter drop-shadow-sm">{user.credits}</span>
-                                <span className="text-xl font-bold text-amber-500">积分</span>
+                            <div className="text-[11px] font-extrabold text-amber-900/35 uppercase tracking-widest mb-2 pl-1">钱包余额</div>
+                            <div className="flex items-end gap-2">
+                                <span className="text-6xl font-black text-gray-900 tracking-tighter drop-shadow-sm leading-none">{user.credits}</span>
+                                <span className="text-lg font-bold text-amber-500 mb-1">积分</span>
                             </div>
                         </div>
                     </div>
 
                     <div className="relative z-10">
-                        <button className="w-full py-4 bg-white text-amber-600 border border-amber-100/50 rounded-2xl text-sm font-bold shadow-sm hover:shadow-lg hover:shadow-amber-100 transition-all active:scale-95 flex items-center justify-center gap-2 group-hover:bg-amber-600 group-hover:text-white group-hover:border-transparent duration-300">
+                        <button className="w-full py-4 bg-gradient-to-r from-amber-500 to-orange-400 text-white border border-amber-200/40 rounded-2xl text-sm font-bold shadow-lg shadow-amber-200/60 hover:shadow-xl hover:shadow-amber-300/60 transition-all active:scale-95 flex items-center justify-center gap-2">
                             <span>管理账户</span>
                             <ArrowRight size={18} />
                         </button>
@@ -93,35 +94,28 @@ const UserProfilePage: React.FC<UserProfilePageProps> = ({ user, items, onBack, 
                 {/* WIDGET 2: Creator Studio (Flex-1 to expand) */}
                 <div 
                     onClick={onSwitchToCreator}
-                    className="flex-1 relative overflow-hidden rounded-[2.5rem] p-8 bg-[#F4F5FF] border border-indigo-100/60 shadow-[0_20px_40px_-12px_rgba(99,102,241,0.15)] cursor-pointer group hover:scale-[1.02] transition-transform duration-500 ease-out flex flex-col justify-between"
+                    className="flex-1 relative overflow-hidden rounded-[2.5rem] p-8 bg-gradient-to-br from-indigo-50 via-white to-indigo-100/40 border border-indigo-200/50 shadow-[0_24px_50px_-24px_rgba(99,102,241,0.35)] ring-1 ring-indigo-200/40 cursor-pointer group hover:scale-[1.02] transition-transform duration-500 ease-out flex flex-col justify-between"
                 >
                      {/* Background Decor */}
-                     <div className="absolute -right-8 -bottom-8 text-indigo-500/5 transform -rotate-6 group-hover:rotate-0 transition-transform duration-1000 ease-in-out">
-                         <PenTool size={180} strokeWidth={1.5} />
+                     <div className="absolute -right-6 -bottom-6 text-indigo-500/6 transform -rotate-6 group-hover:rotate-0 transition-transform duration-1000 ease-in-out">
+                         <PenTool size={120} strokeWidth={1.5} />
                      </div>
+                     <div className="absolute left-6 top-6 w-12 h-12 rounded-full bg-indigo-200/30 blur-xl" />
 
                      <div className="relative z-10 flex flex-col gap-4">
                          <div className="flex justify-between items-start">
                              <div>
                                  <h3 className="text-2xl font-black text-gray-900 tracking-tight leading-none mb-2">创作者<br/>工作室</h3>
-                                 <p className="text-xs text-indigo-400 font-bold tracking-wide">仪表盘 & 数据分析</p>
                              </div>
-                             <div className="w-12 h-12 rounded-full bg-indigo-100/50 flex items-center justify-center text-indigo-600 backdrop-blur-sm">
+                             <div className="w-12 h-12 rounded-full bg-gradient-to-br from-white to-indigo-100/70 border border-indigo-200/60 flex items-center justify-center text-indigo-600 shadow-sm backdrop-blur-sm">
                                  <PenTool size={20} />
                              </div>
                          </div>
 
-                         <div className="flex items-center gap-2 bg-white/40 w-fit px-4 py-2 rounded-xl border border-white/40 backdrop-blur-sm">
-                             <div className="relative flex h-2.5 w-2.5">
-                                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                                 <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500"></span>
-                             </div>
-                             <span className="text-sm font-bold text-gray-700">账户活跃</span>
-                         </div>
                      </div>
 
                      <div className="relative z-10">
-                         <button className="w-full py-4 bg-white text-indigo-600 border border-indigo-100/50 rounded-2xl text-sm font-bold shadow-sm hover:shadow-lg hover:shadow-indigo-100 transition-all active:scale-95 flex items-center justify-center gap-2 group-hover:bg-indigo-600 group-hover:text-white group-hover:border-transparent duration-300">
+                         <button className="w-full py-4 bg-white text-indigo-600 border border-indigo-200/60 rounded-2xl text-sm font-bold shadow-md shadow-indigo-100/60 hover:shadow-lg hover:shadow-indigo-200/60 transition-all active:scale-95 flex items-center justify-center gap-2 group-hover:bg-indigo-600 group-hover:text-white group-hover:border-transparent duration-300">
                              打开工作台 <ArrowRight size={18} />
                          </button>
                      </div>

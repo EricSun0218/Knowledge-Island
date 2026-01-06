@@ -1,0 +1,7 @@
+{
+  "name": "Knowledge Island",
+  "description": "A sophisticated, exclusive knowledge reading page for creators with AI-powered assistance and multi-media support.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}

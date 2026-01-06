@@ -1,0 +1,459 @@
+import React, { useState, useRef, useEffect } from 'react';
+import { ChatMessage, FileNode } from '../types';
+import { Send, Mic, Volume2, Loader2, X, Link as LinkIcon, Bot } from 'lucide-react';
+import { GoogleGenAI, LiveServerMessage, Modality } from '@google/genai';
+import { createBlob, decode, decodeAudioData } from '../services/liveApiUtils';
+
+interface AIChatProps {
+  currentFile: FileNode | null;
+  fileTreeData: FileNode[];
+  onClose: () => void;
+  onNavigateToFile: (fileId: string) => void;
+  isOpen: boolean;
+}
+
+// --------------------------------------------------------
+// LIVE API HOOK (Unchanged logic, kept for context)
+// --------------------------------------------------------
+const useLiveSession = (
+  isActive: boolean, 
+  onDisconnect: () => void,
+  systemInstruction: string
+) => {
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
+  
+  // Refs for audio handling
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
+  const nextStartTimeRef = useRef<number>(0);
+  const sourcesRef = useRef<Set<AudioBufferSourceNode>>(new Set());
+  const sessionRef = useRef<any>(null); // To hold the active session
+
+  useEffect(() => {
+    if (!isActive) {
+      // Cleanup when inactive
+      sessionRef.current = null;
+      if (audioContextRef.current) {
+        audioContextRef.current.close();
+        audioContextRef.current = null;
+      }
+      if (mediaStreamRef.current) {
+        mediaStreamRef.current.getTracks().forEach(track => track.stop());
+        mediaStreamRef.current = null;
+      }
+      return;
+    }
+
+    const startSession = async () => {
+      setIsConnecting(true);
+      try {
+        const apiKey = process.env.API_KEY || '';
+        if (!apiKey) {
+            console.error("No API KEY");
+            onDisconnect();
+            return;
+        }
+
+        const ai = new GoogleGenAI({ apiKey });
+        
+        // Setup Audio Contexts
+        const inputAudioContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
+        const outputAudioContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
+        audioContextRef.current = outputAudioContext;
+
+        const outputNode = outputAudioContext.createGain();
+        outputNode.connect(outputAudioContext.destination);
+
+        // Get Mic Stream
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaStreamRef.current = stream;
+
+        // Connect to Gemini Live
+        const sessionPromise = ai.live.connect({
+          model: 'gemini-2.5-flash-native-audio-preview-09-2025',
+          config: {
+            responseModalities: [Modality.AUDIO],
+            speechConfig: {
+              voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } },
+            },
+            systemInstruction: systemInstruction,
+          },
+          callbacks: {
+            onopen: () => {
+              console.log('Gemini Live Connected');
+              setIsConnecting(false);
+              
+              // Setup Audio Processing for Input
+              const source = inputAudioContext.createMediaStreamSource(stream);
+              const scriptProcessor = inputAudioContext.createScriptProcessor(4096, 1, 1);
+              
+              scriptProcessor.onaudioprocess = (e) => {
+                const inputData = e.inputBuffer.getChannelData(0);
+                const pcmBlob = createBlob(inputData);
+                sessionPromise.then(session => {
+                   session.sendRealtimeInput({ media: pcmBlob });
+                });
+              };
+              
+              source.connect(scriptProcessor);
+              scriptProcessor.connect(inputAudioContext.destination);
+            },
+            onmessage: async (message: LiveServerMessage) => {
+              // Handle Audio Output
+              const base64Audio = message.serverContent?.modelTurn?.parts?.[0]?.inlineData?.data;
+              if (base64Audio) {
+                setIsPlaying(true);
+                nextStartTimeRef.current = Math.max(nextStartTimeRef.current, outputAudioContext.currentTime);
+                
+                const audioBuffer = await decodeAudioData(
+                  decode(base64Audio),
+                  outputAudioContext,
+                  24000,
+                  1
+                );
+                
+                const source = outputAudioContext.createBufferSource();
+                source.buffer = audioBuffer;
+                source.connect(outputNode);
+                
+                source.addEventListener('ended', () => {
+                   sourcesRef.current.delete(source);
+                   if(sourcesRef.current.size === 0) setIsPlaying(false);
+                });
+
+                source.start(nextStartTimeRef.current);
+                nextStartTimeRef.current += audioBuffer.duration;
+                sourcesRef.current.add(source);
+              }
+
+              // Handle Interruption
+              if (message.serverContent?.interrupted) {
+                sourcesRef.current.forEach(s => s.stop());
+                sourcesRef.current.clear();
+                nextStartTimeRef.current = 0;
+                setIsPlaying(false);
+              }
+            },
+            onclose: () => {
+              console.log('Session closed');
+              onDisconnect();
+            },
+            onerror: (err) => {
+              console.error('Session error', err);
+              onDisconnect();
+            }
+          }
+        });
+
+        sessionRef.current = sessionPromise;
+
+      } catch (err) {
+        console.error("Failed to connect live session", err);
+        setIsConnecting(false);
+        onDisconnect();
+      }
+    };
+
+    startSession();
+    
+    // Cleanup hook
+    return () => {
+        // We handle cleanup in the effect dependencies or isActive check mostly,
+        // but explicit cleanup is good.
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isActive]);
+
+  return { isConnecting, isPlaying };
+};
+
+
+// --------------------------------------------------------
+// COMPONENT
+// --------------------------------------------------------
+
+const AIChat: React.FC<AIChatProps> = ({ currentFile, fileTreeData, onClose, onNavigateToFile, isOpen }) => {
+  const [messages, setMessages] = useState<ChatMessage[]>([
+    { 
+      id: '1', 
+      role: 'model', 
+      text: '你好！我是你的 AI 助手。我了解这个知识库的所有内容，有什么可以帮你的吗？', 
+      timestamp: new Date(Date.now() - 20000) 
+    },
+    {
+      id: '2',
+      role: 'user',
+      text: '设计原则是什么？',
+      timestamp: new Date(Date.now() - 10000)
+    },
+    {
+      id: '3',
+      role: 'model',
+      text: '视觉层级、平衡和现代界面应用是 [[设计原则.mp3]] 中涵盖的关键概念。它解释了如何有效地构建信息结构。',
+      timestamp: new Date()
+    }
+  ]);
+  const [inputValue, setInputValue] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [isVoiceMode, setIsVoiceMode] = useState(false);
+  
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Monitor visibility to stop voice mode
+  useEffect(() => {
+    if (!isOpen) {
+      setIsVoiceMode(false);
+    }
+  }, [isOpen]);
+
+  // Helper: recursively find file by name
+  const findFileByName = (nodes: FileNode[], name: string): FileNode | null => {
+    for (const node of nodes) {
+      if (node.name === name) return node;
+      if (node.children) {
+        const found = findFileByName(node.children, name);
+        if (found) return found;
+      }
+    }
+    return null;
+  };
+
+  // Generate context string
+  const getContext = () => {
+    let context = `你是一位创作者知识库的智能助手。请使用中文回答。 \n`;
+    context += `重要指令：提供完整、自然的回答。当你的回答引用知识库中的特定文件时，请在相关句子或短语末尾添加引用，格式为双括号包裹确切的文件名，例如：[[宣言.md]]。\n\n`;
+    
+    if (currentFile) {
+      context += `用户当前正在查看文件： "${currentFile.name}" (类型: ${currentFile.type}).\n`;
+      if (currentFile.content && currentFile.type === 'text') {
+        context += `文件内容:\n${currentFile.content}\n\n`;
+      }
+    }
+    context += `文件结构:\n${JSON.stringify(fileTreeData.map(f => ({name: f.name, type: f.type})), null, 2)}`;
+    return context;
+  };
+
+  // Parse text to render citations
+  const renderMessageText = (text: string) => {
+    // Regex to match [[FileName]]
+    const parts = text.split(/(\[\[.*?\]\])/g);
+    
+    return parts.map((part, index) => {
+      if (part.startsWith('[[') && part.endsWith(']]')) {
+        const fileName = part.slice(2, -2);
+        const fileNode = findFileByName(fileTreeData, fileName);
+        
+        if (fileNode) {
+          return (
+            <span key={index} className="inline-flex items-center align-baseline relative group mx-1">
+                <button 
+                  onClick={() => onNavigateToFile(fileNode.id)}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 bg-blue-50 border border-blue-200 text-blue-700 rounded-lg hover:bg-blue-100 hover:shadow-sm transition-all text-xs font-bold transform hover:-translate-y-0.5"
+                >
+                  <LinkIcon size={10} />
+                  {fileName}
+                </button>
+            </span>
+          );
+        }
+        // If file not found in tree
+        return <span key={index} className="text-xs font-bold text-gray-500 mx-0.5">{fileName}</span>;
+      }
+      return <span key={index}>{part}</span>;
+    });
+  };
+
+  // Text Chat Handler
+  const handleSendMessage = async () => {
+    if (!inputValue.trim()) return;
+
+    const userMsg: ChatMessage = {
+      id: Date.now().toString(),
+      role: 'user',
+      text: inputValue,
+      timestamp: new Date()
+    };
+    setMessages(prev => [...prev, userMsg]);
+    setInputValue('');
+    setIsLoading(true);
+
+    try {
+      const apiKey = process.env.API_KEY;
+      if (!apiKey) throw new Error("API Key missing");
+      
+      const ai = new GoogleGenAI({ apiKey });
+      const model = ai.getGenerativeModel({ 
+          model: "gemini-3-flash-preview",
+          systemInstruction: getContext()
+      });
+
+      // Construct history
+      const history = messages.map(m => ({
+        role: m.role,
+        parts: [{ text: m.text }]
+      }));
+
+      const chat = model.startChat({ history });
+      const result = await chat.sendMessage(userMsg.text);
+      const responseText = result.response.text();
+
+      const aiMsg: ChatMessage = {
+        id: (Date.now() + 1).toString(),
+        role: 'model',
+        text: responseText,
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, aiMsg]);
+
+    } catch (error) {
+      console.error("Chat error:", error);
+      const errorMsg: ChatMessage = {
+        id: Date.now().toString(),
+        role: 'model',
+        text: "连接出现问题，请检查您的 API Key。",
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, errorMsg]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Scroll to bottom
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+
+  // Live Voice Hook
+  const { isConnecting, isPlaying } = useLiveSession(
+    isVoiceMode, 
+    () => setIsVoiceMode(false),
+    getContext() // Passing dynamic context to system instruction for voice
+  );
+
+  return (
+    <div className="flex flex-col h-full relative bg-white">
+      {/* Header - Seamless White */}
+      <div className="px-6 py-5 flex items-center justify-between bg-white z-20 shrink-0 sticky top-0">
+        <div className="flex items-center gap-3">
+           <div className={`w-8 h-8 rounded-full flex items-center justify-center ${isVoiceMode ? 'bg-green-500 shadow-[0_0_15px_rgba(34,197,94,0.4)]' : 'bg-blue-500 shadow-md'}`}>
+              <Bot size={14} className="text-white" />
+           </div>
+           <div className="flex flex-col">
+              <h3 className="font-extrabold text-gray-800 text-sm tracking-tight leading-none">AI 伴侣</h3>
+              <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wide mt-0.5">在线</span>
+           </div>
+        </div>
+        <button 
+          onClick={onClose}
+          className="text-gray-400 hover:text-gray-600 transition-colors bg-gray-50 hover:bg-gray-100 p-2 rounded-full"
+        >
+          <X size={16} />
+        </button>
+      </div>
+
+      {/* Voice Mode Overlay (Glassmorphism) */}
+      {isVoiceMode && (
+        <div className="absolute inset-0 bg-white/30 backdrop-blur-2xl z-30 flex flex-col items-center justify-center text-center p-6 space-y-10 animate-fadeIn">
+          <div className="relative">
+            {/* Pulsing Rings */}
+            {isPlaying && (
+              <>
+                <div className="absolute inset-0 rounded-full bg-blue-400/20 animate-ping blur-xl"></div>
+                <div className="absolute -inset-8 rounded-full bg-blue-300/10 animate-pulse blur-2xl"></div>
+              </>
+            )}
+            
+            <div className={`w-32 h-32 rounded-full flex items-center justify-center transition-all duration-700 relative z-10 
+                ${isPlaying 
+                    ? 'bg-blue-500 shadow-[0_0_40px_rgba(59,130,246,0.5)] scale-110' 
+                    : 'bg-white shadow-[0_10px_30px_rgba(0,0,0,0.05)] border border-white/50'
+                }`}
+            >
+               {isConnecting ? (
+                 <Loader2 size={32} className="text-gray-400 animate-spin" />
+               ) : (
+                 <Volume2 size={36} className={`transition-colors duration-300 ${isPlaying ? 'text-white' : 'text-gray-400'}`} />
+               )}
+            </div>
+          </div>
+          
+          <div className="space-y-2 relative z-10">
+            <h4 className="text-2xl font-black text-gray-800 tracking-tight">
+              {isConnecting ? "连接中..." : isPlaying ? "正在说话..." : "聆听中..."}
+            </h4>
+            <p className="text-sm text-gray-500 font-medium">
+              实时对话中
+            </p>
+          </div>
+
+          <button 
+             onClick={() => setIsVoiceMode(false)}
+             className="px-8 py-3 bg-white/80 backdrop-blur-xl border border-white/60 rounded-full text-gray-700 hover:bg-white shadow-xl shadow-gray-200/40 text-sm font-bold active:scale-95 transition-all relative z-10"
+          >
+            切换到文字
+          </button>
+        </div>
+      )}
+
+      {/* Messages Area */}
+      <div className="flex-1 overflow-y-auto p-5 space-y-6 bg-transparent">
+        {messages.map((msg) => (
+          <div 
+            key={msg.id} 
+            className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-in slide-in-from-bottom-2 duration-300`}
+          >
+            <div className={`
+              max-w-[88%] px-5 py-3.5 text-sm leading-relaxed
+              ${msg.role === 'user' 
+                ? 'bg-blue-100 border border-blue-200 text-slate-900 rounded-[1.25rem] rounded-br-[2px] shadow-sm font-medium' 
+                : 'bg-white text-gray-800 rounded-[1.25rem] rounded-bl-[2px] shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-gray-200'}
+            `}>
+              {msg.role === 'user' ? msg.text : renderMessageText(msg.text)}
+            </div>
+          </div>
+        ))}
+        {isLoading && (
+          <div className="flex justify-start">
+             <div className="bg-white border border-gray-200 rounded-[1.25rem] rounded-bl-[2px] px-5 py-3.5 shadow-sm flex gap-1">
+                <div className="w-2 h-2 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                <div className="w-2 h-2 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                <div className="w-2 h-2 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: '300ms' }}></div>
+             </div>
+          </div>
+        )}
+        <div ref={messagesEndRef} />
+      </div>
+
+      {/* Input Area (Seamless White) */}
+      <div className="p-6 bg-white shrink-0 z-20">
+        <div className="flex items-center gap-2 bg-gray-100 rounded-full pl-5 pr-2 py-2 border border-transparent shadow-inner focus-within:bg-white focus-within:border-blue-300 focus-within:shadow-xl focus-within:shadow-blue-500/10 transition-all duration-300 group ring-1 ring-transparent focus-within:ring-blue-100">
+          <input
+            type="text"
+            className="flex-1 bg-transparent border-none focus:outline-none text-sm text-gray-800 placeholder-gray-500 font-medium h-9"
+            placeholder="问问 AI..."
+            value={inputValue}
+            onChange={(e) => setInputValue(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSendMessage()}
+            disabled={isVoiceMode}
+          />
+          <button 
+            onClick={inputValue.trim() ? handleSendMessage : () => setIsVoiceMode(true)}
+            disabled={isLoading || (isVoiceMode && !!inputValue.trim())}
+            className={`w-9 h-9 rounded-full flex items-center justify-center transition-all duration-300 ${
+              inputValue.trim()
+                ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/30 hover:bg-blue-600 active:scale-95' 
+                : 'text-gray-400 hover:text-gray-600 hover:bg-gray-200'
+            }`}
+          >
+            {inputValue.trim() ? <Send size={16} className="ml-0.5" /> : <Mic size={18} />}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default AIChat;

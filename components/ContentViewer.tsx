@@ -250,7 +250,6 @@ const TTSPlayer = ({ text }: { text: string }) => {
                     <div className="flex items-center gap-4">
                         <div className="flex items-center gap-1.5 hover:text-blue-600 transition-colors group relative">
                            <Mic2 size={12} />
-                           <span className="text-gray-500 group-hover:text-blue-600">朗读: </span>
                            <select 
                                 value={selectedVoice} 
                                 onChange={handleVoiceChange}
@@ -261,13 +260,13 @@ const TTSPlayer = ({ text }: { text: string }) => {
                             <ChevronDown size={10} className="absolute right-0 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
                         </div>
                         <span className="hidden sm:flex items-center gap-1">
-                            <HardDrive size={12} /> 大小: {sizeMB}MB
+                            <HardDrive size={12} /> {sizeMB}MB
                         </span>
                     </div>
                     
                     <div className="flex items-center gap-1.5">
                        <Clock size={12} />
-                       时长: {formatTime(displayDuration)}
+                       {formatTime(displayDuration)}
                     </div>
                 </div>
             </div>

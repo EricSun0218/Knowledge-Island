@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FileText, Network, PanelRightClose, Bot, ArrowUp, Radio, Presentation, ClipboardCheck, Grid3x3 } from 'lucide-react';
+import { FileText, Network, PanelRightClose, Bot, ArrowUp, Radio, Presentation, ClipboardCheck, Settings, Folder } from 'lucide-react';
 
 interface RightToolbarProps {
   isChatOpen: boolean;
@@ -9,6 +9,8 @@ interface RightToolbarProps {
   onPodcast?: () => void;
   onPPT?: () => void;
   onQuiz?: () => void;
+  onMyContent?: () => void;
+  isMyContentOpen?: boolean;
   className?: string;
 }
 
@@ -20,6 +22,8 @@ const RightToolbar: React.FC<RightToolbarProps> = ({
   onPodcast,
   onPPT,
   onQuiz,
+  onMyContent,
+  isMyContentOpen = false,
   className = ""
 }) => {
   const [isToolsMenuOpen, setIsToolsMenuOpen] = useState(false);
@@ -62,6 +66,25 @@ const RightToolbar: React.FC<RightToolbarProps> = ({
           </span>
        </div>
 
+       {/* My Content Button */}
+       {onMyContent && (
+           <div className="flex flex-col items-center gap-1.5">
+                <button 
+                    onClick={onMyContent}
+                    className={`
+                      w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-300 shadow-[0_2px_8px_rgba(0,0,0,0.06)] hover:scale-110 active:scale-95 border border-gray-200/60 backdrop-blur-xl
+                      ${isMyContentOpen 
+                        ? 'bg-gradient-to-br from-sky-500 to-blue-600 text-white shadow-[0_4px_12px_rgba(14,165,233,0.3)] ring-2 ring-sky-100/50' 
+                        : 'bg-white/90 text-gray-600 hover:text-sky-600 hover:bg-white hover:shadow-[0_4px_12px_rgba(0,0,0,0.08)]'
+                      }
+                    `}
+                >
+                    <Folder size={22} />
+                </button>
+                <span className="text-[10px] font-semibold text-gray-700 whitespace-nowrap">我的内容</span>
+           </div>
+       )}
+
        {/* Tools Separator */}
        <div className="h-px w-8 bg-gray-200/40 mx-auto my-1" />
 
@@ -103,7 +126,7 @@ const RightToolbar: React.FC<RightToolbarProps> = ({
                 <button 
                     className="w-12 h-12 rounded-2xl bg-white/90 text-indigo-500 hover:bg-white hover:text-indigo-600 hover:scale-110 border border-gray-200/60 flex items-center justify-center transition-all duration-300 shadow-[0_2px_8px_rgba(0,0,0,0.06)] hover:shadow-[0_4px_12px_rgba(99,102,241,0.15)] active:scale-95 backdrop-blur-sm"
                 >
-                    <Grid3x3 size={20} />
+                    <Settings size={20} />
                 </button>
                 <span className="text-[10px] font-semibold text-gray-700 whitespace-nowrap">AI 工具</span>
                 

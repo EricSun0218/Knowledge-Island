@@ -4,6 +4,7 @@ import FileTree from './components/FileTree';
 import ContentViewer from './components/ContentViewer';
 import AIChat from './components/AIChat';
 import RightToolbar from './components/RightToolbar';
+import MyContent, { GeneratedContent } from './components/MyContent';
 import UserProfilePage from './components/UserProfilePage';
 import CreatorPublicProfile from './components/CreatorPublicProfile';
 import CreatorStudio from './components/CreatorStudio';
@@ -23,7 +24,10 @@ function App() {
   // Reader Mode States
   const [isLeftSidebarOpen, setIsLeftSidebarOpen] = useState(true);
   const [isRightSidebarOpen, setIsRightSidebarOpen] = useState(false);
+  const [isMyContentOpen, setIsMyContentOpen] = useState(false);
   const [readerView, setReaderView] = useState<'dashboard' | 'userProfile' | 'creatorProfile'>('dashboard');
+  const [generatedContents, setGeneratedContents] = useState<GeneratedContent[]>([]);
+  const [selectedContent, setSelectedContent] = useState<GeneratedContent | null>(null);
   
   // TOC / Outline States
   const [headings, setHeadings] = useState<{id: string, text: string, level: number}[]>([]);
@@ -105,11 +109,72 @@ function App() {
   };
 
   // Placeholder actions
-  const handleAISummary = () => alert("AI 摘要生成中... (演示)");
-  const handleAIMindMap = () => alert("正在生成思维导图... (演示)");
-  const handleAIPodcast = () => alert("正在生成播客... (演示)");
-  const handleAIPPT = () => alert("正在生成 AI PPT... (演示)");
-  const handleAIQuiz = () => alert("正在生成 AI 测验... (演示)");
+  const handleAISummary = () => {
+    const newContent: GeneratedContent = {
+      id: `summary-${Date.now()}`,
+      type: 'summary',
+      title: 'AI 总结',
+      createdAt: new Date().toLocaleDateString('zh-CN'),
+      preview: '这是 AI 生成的总结内容预览...'
+    };
+    setGeneratedContents(prev => [newContent, ...prev]);
+    alert("AI 摘要生成中... (演示)");
+  };
+  const handleAIMindMap = () => {
+    const newContent: GeneratedContent = {
+      id: `mindmap-${Date.now()}`,
+      type: 'mindmap',
+      title: '思维导图',
+      createdAt: new Date().toLocaleDateString('zh-CN'),
+      preview: '这是 AI 生成的思维导图预览...'
+    };
+    setGeneratedContents(prev => [newContent, ...prev]);
+    alert("正在生成思维导图... (演示)");
+  };
+  const handleAIPodcast = () => {
+    const newContent: GeneratedContent = {
+      id: `podcast-${Date.now()}`,
+      type: 'podcast',
+      title: 'AI 播客',
+      createdAt: new Date().toLocaleDateString('zh-CN'),
+      preview: '这是 AI 生成的播客内容预览...'
+    };
+    setGeneratedContents(prev => [newContent, ...prev]);
+    alert("正在生成播客... (演示)");
+  };
+  const handleAIPPT = () => {
+    const newContent: GeneratedContent = {
+      id: `ppt-${Date.now()}`,
+      type: 'ppt',
+      title: 'AI PPT',
+      createdAt: new Date().toLocaleDateString('zh-CN'),
+      preview: '这是 AI 生成的 PPT 预览...'
+    };
+    setGeneratedContents(prev => [newContent, ...prev]);
+    alert("正在生成 AI PPT... (演示)");
+  };
+  const handleAIQuiz = () => {
+    const newContent: GeneratedContent = {
+      id: `quiz-${Date.now()}`,
+      type: 'quiz',
+      title: 'AI 测验',
+      createdAt: new Date().toLocaleDateString('zh-CN'),
+      preview: '这是 AI 生成的测验内容预览...'
+    };
+    setGeneratedContents(prev => [newContent, ...prev]);
+    alert("正在生成 AI 测验... (演示)");
+  };
+  const handleToggleMyContent = () => {
+    setIsMyContentOpen(!isMyContentOpen);
+    if (!isMyContentOpen) {
+      setIsRightSidebarOpen(false);
+    }
+  };
+  const handleSelectContent = (content: GeneratedContent) => {
+    setSelectedContent(content);
+    setIsMyContentOpen(false);
+    setSelectedFileId(null); // 清除文件选择，显示生成的内容
+  };
 
   return (
     <div className="flex flex-col h-screen text-gray-800 bg-white">
@@ -191,7 +256,10 @@ function App() {
                                 <FileTree 
                                     files={files} 
                                     selectedFileId={selectedFileId} 
-                                    onSelect={(node) => setSelectedFileId(node.id)} 
+                                    onSelect={(node) => {
+                                      setSelectedFileId(node.id);
+                                      setSelectedContent(null); // 清除选中的生成内容
+                                    }} 
                                     onToggleFolder={handleToggleFolder} 
                                     theme="blue"
                                 />
@@ -226,7 +294,23 @@ function App() {
                         >
                             {/* Main Content Area */}
                             <div className="flex-1 h-full bg-white transition-all duration-500 relative">
-                                <ContentViewer file={selectedFile} isLeftSidebarOpen={isLeftSidebarOpen} isRightSidebarOpen={isRightSidebarOpen} />
+                                <ContentViewer 
+                                    file={selectedContent ? {
+                                      id: selectedContent.id,
+                                      name: selectedContent.title,
+                                      type: selectedContent.type === 'ppt' ? 'pptx' : 
+                                            selectedContent.type === 'podcast' ? 'mp3' :
+                                            selectedContent.type === 'quiz' ? 'pdf' :
+                                            selectedContent.type === 'summary' ? 'md' : 'md',
+                                      content: selectedContent.preview || `# ${selectedContent.title}\n\n${selectedContent.preview || '这是生成的内容预览...'}`,
+                                      path: '',
+                                      size: 0,
+                                      createdAt: selectedContent.createdAt,
+                                      updatedAt: selectedContent.createdAt
+                                    } : selectedFile} 
+                                    isLeftSidebarOpen={isLeftSidebarOpen} 
+                                    isRightSidebarOpen={isRightSidebarOpen || isMyContentOpen} 
+                                />
                                 
                                 {/* TOC - 相对于内容区域定位 */}
                                 {headings.length > 0 && !isLeftSidebarOpen && !isRightSidebarOpen && (
@@ -298,16 +382,21 @@ function App() {
                                 )}
                                 
                                 {/* Right Toolbar - 相对于内容区域定位 */}
-                                {!isRightSidebarOpen && (
+                                {!isRightSidebarOpen && !isMyContentOpen && (
                                     <div className="absolute -right-4 top-1/2 -translate-y-1/2 z-40 hidden xl:block animate-fadeIn">
                                         <RightToolbar 
                                             isChatOpen={isRightSidebarOpen}
-                                            onToggleChat={() => setIsRightSidebarOpen(!isRightSidebarOpen)}
+                                            onToggleChat={() => {
+                                              setIsRightSidebarOpen(!isRightSidebarOpen);
+                                              setIsMyContentOpen(false);
+                                            }}
                                             onSummary={handleAISummary}
                                             onMindMap={handleAIMindMap}
                                             onPodcast={handleAIPodcast}
                                             onPPT={handleAIPPT}
                                             onQuiz={handleAIQuiz}
+                                            onMyContent={handleToggleMyContent}
+                                            isMyContentOpen={isMyContentOpen}
                                         />
                                     </div>
                                 )}
@@ -339,36 +428,63 @@ function App() {
                     )}
                 </section>
                 
-                {/* RIGHT SIDEBAR - AI Chat */}
+                {/* RIGHT SIDEBAR - AI Chat or My Content */}
                 {readerView === 'dashboard' && (
-                    <aside 
-                        className={`
-                        flex flex-col z-30
-                        bg-white border-l border-gray-200/60
-                        rounded-[15px] overflow-hidden shrink-0
-                        transition-[width,transform,opacity,margin,box-shadow] duration-700 ease-[cubic-bezier(0.32,0.72,0,1)]
-                        ${isRightSidebarOpen 
-                            ? 'w-[28rem] opacity-100 translate-x-0 shadow-[0_-4px_24px_-2px_rgba(0,0,0,0.08),0_0_0_1px_rgba(0,0,0,0.02)]' 
-                            : 'w-0 opacity-0 translate-x-10 shadow-none'
-                        }
-                        `}
-                    >
-                        {/* Fixed Width Inner Container */}
-                        <div className="w-[28rem] h-full flex flex-col min-w-[28rem] bg-gradient-to-b from-white to-gray-50/30">
-                            <AIChat 
-                                currentFile={selectedFile} 
-                                fileTreeData={files} 
-                                onClose={() => setIsRightSidebarOpen(false)}
-                                onNavigateToFile={(id) => setSelectedFileId(id)}
-                                isOpen={isRightSidebarOpen}
-                                onSummary={handleAISummary}
-                                onMindMap={handleAIMindMap}
-                                onPodcast={handleAIPodcast}
-                                onPPT={handleAIPPT}
-                                onQuiz={handleAIQuiz}
-                            />
-                        </div>
-                    </aside>
+                    <>
+                        {/* AI Chat Sidebar */}
+                        <aside 
+                            className={`
+                            flex flex-col z-30
+                            bg-white border-l border-gray-200/60
+                            rounded-[15px] overflow-hidden shrink-0
+                            transition-[width,transform,opacity,margin,box-shadow] duration-700 ease-[cubic-bezier(0.32,0.72,0,1)]
+                            ${isRightSidebarOpen 
+                                ? 'w-[28rem] opacity-100 translate-x-0 shadow-[0_-4px_24px_-2px_rgba(0,0,0,0.08),0_0_0_1px_rgba(0,0,0,0.02)]' 
+                                : 'w-0 opacity-0 translate-x-10 shadow-none'
+                            }
+                            `}
+                        >
+                            {/* Fixed Width Inner Container */}
+                            <div className="w-[28rem] h-full flex flex-col min-w-[28rem] bg-gradient-to-b from-white to-gray-50/30">
+                                <AIChat 
+                                    currentFile={selectedFile} 
+                                    fileTreeData={files} 
+                                    onClose={() => setIsRightSidebarOpen(false)}
+                                    onNavigateToFile={(id) => setSelectedFileId(id)}
+                                    isOpen={isRightSidebarOpen}
+                                    onSummary={handleAISummary}
+                                    onMindMap={handleAIMindMap}
+                                    onPodcast={handleAIPodcast}
+                                    onPPT={handleAIPPT}
+                                    onQuiz={handleAIQuiz}
+                                />
+                            </div>
+                        </aside>
+
+                        {/* My Content Sidebar */}
+                        <aside 
+                            className={`
+                            flex flex-col z-30
+                            bg-white border-l border-gray-200/60
+                            rounded-[15px] overflow-hidden shrink-0
+                            transition-[width,transform,opacity,margin,box-shadow] duration-700 ease-[cubic-bezier(0.32,0.72,0,1)]
+                            ${isMyContentOpen 
+                                ? 'w-[28rem] opacity-100 translate-x-0 shadow-[0_-4px_24px_-2px_rgba(0,0,0,0.08),0_0_0_1px_rgba(0,0,0,0.02)]' 
+                                : 'w-0 opacity-0 translate-x-10 shadow-none'
+                            }
+                            `}
+                        >
+                            {/* Fixed Width Inner Container */}
+                            <div className="w-[28rem] h-full flex flex-col min-w-[28rem] bg-gradient-to-b from-white to-gray-50/30">
+                                <MyContent 
+                                    contents={generatedContents}
+                                    onClose={() => setIsMyContentOpen(false)}
+                                    onSelectContent={handleSelectContent}
+                                    isOpen={isMyContentOpen}
+                                />
+                            </div>
+                        </aside>
+                    </>
                 )}
             </>
         )}

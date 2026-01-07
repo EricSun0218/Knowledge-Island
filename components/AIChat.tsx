@@ -386,8 +386,8 @@ const AIChat: React.FC<AIChatProps> = ({ currentFile, fileTreeData, onClose, onN
       {/* Header - Enhanced Design */}
       <div className="px-6 py-2 flex items-center justify-between bg-white/80 backdrop-blur-xl border-b border-gray-100/60 z-20 shrink-0 sticky top-0 shadow-sm">
         <div className="flex items-center gap-3">
-           <div className={`w-8 h-8 rounded-full flex items-center justify-center ${isVoiceMode ? 'bg-green-500 shadow-[0_0_15px_rgba(34,197,94,0.4)]' : 'bg-sky-400 shadow-md'}`}>
-              <Bot size={14} className="text-white" />
+           <div className={`w-8 h-8 rounded-full flex items-center justify-center ${isVoiceMode ? 'bg-green-500 shadow-[0_0_15px_rgba(34,197,94,0.4)]' : 'bg-white shadow-sm border border-gray-200/60'}`}>
+              <Bot size={14} className={isVoiceMode ? 'text-white' : 'text-blue-600'} />
            </div>
            <div className="flex flex-col">
               <h3 className="font-extrabold text-gray-800 text-sm tracking-tight leading-none">AI 学习助手</h3>
@@ -468,8 +468,8 @@ const AIChat: React.FC<AIChatProps> = ({ currentFile, fileTreeData, onClose, onN
                   <div className="flex gap-4">
                     {/* AI 图标 */}
                     <div className="flex-shrink-0">
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-sky-400 to-sky-500 flex items-center justify-center shadow-sm group-hover:shadow-md transition-shadow">
-                        <Bot size={16} className="text-white" />
+                      <div className="w-8 h-8 rounded-full bg-white shadow-sm border border-gray-200/60 flex items-center justify-center group-hover:shadow-md transition-shadow">
+                        <Bot size={16} className="text-blue-600" />
                       </div>
                     </div>
                     {/* 消息内容 */}
@@ -490,8 +490,8 @@ const AIChat: React.FC<AIChatProps> = ({ currentFile, fileTreeData, onClose, onN
               <div className="flex gap-4">
                 {/* AI 图标 */}
                 <div className="flex-shrink-0">
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-sky-400 to-sky-500 flex items-center justify-center shadow-sm">
-                    <Bot size={16} className="text-white" />
+                  <div className="w-8 h-8 rounded-full bg-white shadow-sm border border-gray-200/60 flex items-center justify-center">
+                    <Bot size={16} className="text-blue-600" />
                   </div>
                 </div>
                 {/* 加载动画 */}

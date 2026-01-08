@@ -333,6 +333,39 @@ const MarkdownRenderer = ({ content }: { content: string }) => {
                     );
                 }
 
+                // Bilibili Video: [VIDEO:url] - Using clean iframe embed
+                const videoMatch = line.match(/^\[VIDEO:(.*?)\]$/);
+                if (videoMatch) {
+                    const videoUrl = videoMatch[1];
+                    // Extract bvid from Bilibili URL (e.g., BV1mei7BSEkx)
+                    const bvidMatch = videoUrl.match(/BV[a-zA-Z0-9]+/);
+                    if (bvidMatch) {
+                        const bvid = bvidMatch[0];
+                        return (
+                            <div key={idx} className="my-8">
+                                <div className="w-full aspect-video rounded-2xl overflow-hidden bg-black relative">
+                                    <iframe
+                                        src={`https://player.bilibili.com/player.html?bvid=${bvid}&page=1&high_quality=1&autoplay=0&danmaku=0&as_wide=1`}
+                                        scrolling="no"
+                                        frameBorder="0"
+                                        allowFullScreen
+                                        className="w-full h-full"
+                                        style={{ 
+                                            border: 'none', 
+                                            outline: 'none'
+                                        }}
+                                        // 使用 sandbox 限制功能，减少跳转可能
+                                        sandbox="allow-scripts allow-same-origin allow-presentation"
+                                        // 阻止右键菜单
+                                        onContextMenu={(e) => e.preventDefault()}
+                                    />
+                                </div>
+                                {/* 提示：由于B站限制，播放器UI无法完全隐藏，但已尽可能简洁化 */}
+                            </div>
+                        );
+                    }
+                }
+
                 // List Items (Simple)
                 const listMatch = line.match(/^(\d+\.|-)\s+(.+)$/);
                 if (listMatch) {

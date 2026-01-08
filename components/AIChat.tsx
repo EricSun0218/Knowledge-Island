@@ -183,19 +183,7 @@ const AIChat: React.FC<AIChatProps> = ({ currentFile, fileTreeData, onClose, onN
     { 
       id: '1', 
       role: 'model', 
-      text: '你好！我是你的 AI 助手。我了解这个知识库的所有内容，有什么可以帮你的吗？', 
-      timestamp: new Date(Date.now() - 20000) 
-    },
-    {
-      id: '2',
-      role: 'user',
-      text: '设计原则是什么？',
-      timestamp: new Date(Date.now() - 10000)
-    },
-    {
-      id: '3',
-      role: 'model',
-      text: '视觉层级、平衡和现代界面应用是 [[设计原则.mp3]] 中涵盖的关键概念。它解释了如何有效地构建信息结构。',
+      text: '你好！我是你的 AI 助手，有什么可以帮你的吗？', 
       timestamp: new Date()
     }
   ]);
@@ -203,8 +191,12 @@ const AIChat: React.FC<AIChatProps> = ({ currentFile, fileTreeData, onClose, onN
   const [isLoading, setIsLoading] = useState(false);
   const [isVoiceMode, setIsVoiceMode] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<FileNode[]>([]);
+  const [isThinking, setIsThinking] = useState(false);
+  const [typingText, setTypingText] = useState('');
+  const [currentTypingMessageId, setCurrentTypingMessageId] = useState<string | null>(null);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const typingIntervalRef = useRef<number | null>(null);
 
   // 当 currentFile 变化时，更新选中的文件列表
   useEffect(() => {
@@ -325,53 +317,82 @@ const AIChat: React.FC<AIChatProps> = ({ currentFile, fileTreeData, onClose, onN
     setMessages(prev => [...prev, userMsg]);
     setInputValue('');
     setIsLoading(true);
+    setIsThinking(true);
 
-    try {
-      const apiKey = process.env.API_KEY;
-      if (!apiKey) throw new Error("API Key missing");
-      
-      const ai = new GoogleGenAI({ apiKey });
-      const model = ai.getGenerativeModel({ 
-          model: "gemini-3-flash-preview",
-          systemInstruction: getContext()
-      });
+    const fixedAnswer = `首先，不要只看学校名气或专业名称，而要根据你自己的实际情况来判断。
 
-      // Construct history
-      const history = messages.map(m => ({
-        role: m.role,
-        parts: [{ text: m.text }]
-      }));
+第一，看你的英语基础。
+如果你四级刚过、六级没考过，或者背单词很吃力，读长文章经常看不懂逻辑，那说明你的词汇量和语感还不足以应对英一。因为第一章明确提到，英一的文章多选自学术期刊，词汇更难、句子更复杂，要求5500+词汇量；而英二内容更贴近生活、商业、教育，词汇要求约4500，整体更友好。这种情况下，选英二是更明智的选择。
 
-      const chat = model.startChat({ history });
-      const result = await chat.sendMessage(userMsg.text);
-      const responseText = result.response.text();
+第二，看你的时间和目标分数。
+如果你每天能投入英语的时间少于1.5小时，或者总分目标在65–70分之间，那英二更适合你。因为英二没有翻译题，省下20分钟可以留给作文；作文是图表类，结构固定，容易套模板拿分；新题型也基本是送分题。而英一光是翻译和图画作文就更耗精力。第一章强调"作文必须留足50分钟"，在时间紧张的情况下，英二的整体节奏更容易掌控。
 
-      const aiMsg: ChatMessage = {
-        id: (Date.now() + 1).toString(),
-        role: 'model',
-        text: responseText,
-        timestamp: new Date()
-      };
-      setMessages(prev => [...prev, aiMsg]);
+第三，别被"英二变难了"吓到，但要理解"难在哪"。
+第一章说英二近年向英一靠拢，但本质上还是考"理解语篇"，不是考偏难怪。它的难点更多在细节匹配和数据理解，而不是深层逻辑推断。如果你擅长抓段落主旨、找关键词，但不太会"脑补作者没说的意思"，那你其实更适合英二。
 
-    } catch (error) {
-      console.error("Chat error:", error);
-      const errorMsg: ChatMessage = {
-        id: Date.now().toString(),
-        role: 'model',
-        text: "连接出现问题，请检查您的 API Key。",
-        timestamp: new Date()
-      };
-      setMessages(prev => [...prev, errorMsg]);
-    } finally {
-      setIsLoading(false);
-    }
+第四，做一次真实测试，别凭感觉。
+今天就找一篇2023年英一阅读和一篇英二阅读，同样限时15分钟做完。如果英二正确率明显更高、读起来更顺畅，那就说明你的能力现阶段更匹配英二。上岸的关键不是挑战高难度，而是最大化你的得分效率。
+
+最后记住：考研是总分游戏。
+用英二稳稳拿70分，比硬啃英一只拿55分更有价值。选择让你英语不拖后腿的考试类型，才能把精力留给专业课和政治——这才是第一章想传达的核心策略：合理分配精力，优先攻克提分性价比高的部分。`;
+
+    // 思考阶段：等待2.5秒
+    await new Promise(resolve => setTimeout(resolve, 2500));
+    
+    setIsThinking(false);
+    setIsLoading(false);
+
+    // 创建AI消息，初始为空
+    const aiMsgId = (Date.now() + 1).toString();
+    const aiMsg: ChatMessage = {
+      id: aiMsgId,
+      role: 'model',
+      text: '',
+      timestamp: new Date()
+    };
+    setMessages(prev => [...prev, aiMsg]);
+    setCurrentTypingMessageId(aiMsgId);
+    setTypingText('');
+
+    // 打字机效果：逐字显示
+    let currentIndex = 0;
+    const typingSpeed = 60; // 每个字符的延迟（毫秒）
+
+    const typeNextChar = () => {
+      if (currentIndex < fixedAnswer.length) {
+        setTypingText(fixedAnswer.substring(0, currentIndex + 1));
+        currentIndex++;
+        typingIntervalRef.current = setTimeout(typeNextChar, typingSpeed);
+      } else {
+        // 打字完成，更新消息
+        setMessages(prev => prev.map(msg => 
+          msg.id === aiMsgId ? { ...msg, text: fixedAnswer } : msg
+        ));
+        setCurrentTypingMessageId(null);
+        setTypingText('');
+        if (typingIntervalRef.current) {
+          clearTimeout(typingIntervalRef.current);
+          typingIntervalRef.current = null;
+        }
+      }
+    };
+
+    typeNextChar();
   };
 
   // Scroll to bottom
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  }, [messages, typingText]);
+
+  // Cleanup typing interval on unmount
+  useEffect(() => {
+    return () => {
+      if (typingIntervalRef.current) {
+        clearTimeout(typingIntervalRef.current);
+      }
+    };
+  }, []);
 
 
   // Live Voice Hook
@@ -474,9 +495,16 @@ const AIChat: React.FC<AIChatProps> = ({ currentFile, fileTreeData, onClose, onN
                     </div>
                     {/* 消息内容 */}
                     <div className="flex-1 min-w-0 pt-0.5">
-                      <div className="text-[15px] leading-7 text-gray-800 whitespace-pre-wrap">
-                        {renderMessageText(msg.text)}
-                      </div>
+                      {currentTypingMessageId === msg.id && typingText ? (
+                        <div className="text-[15px] leading-7 text-gray-800 whitespace-pre-wrap">
+                          {renderMessageText(typingText)}
+                          <span className="inline-block w-2 h-5 bg-blue-600 ml-1 animate-pulse"></span>
+                        </div>
+                      ) : (
+                        <div className="text-[15px] leading-7 text-gray-800 whitespace-pre-wrap">
+                          {renderMessageText(msg.text)}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -484,7 +512,30 @@ const AIChat: React.FC<AIChatProps> = ({ currentFile, fileTreeData, onClose, onN
             )}
           </div>
         ))}
-        {isLoading && (
+        {isThinking && (
+          <div className="w-full border-b border-gray-100/60">
+            <div className="px-6 py-5">
+              <div className="flex gap-4">
+                {/* AI 图标 */}
+                <div className="flex-shrink-0">
+                  <div className="w-8 h-8 rounded-full bg-white shadow-sm border border-gray-200/60 flex items-center justify-center">
+                    <Bot size={16} className="text-blue-600" />
+                  </div>
+                </div>
+                {/* 思考动画 */}
+                <div className="flex-1 flex items-center gap-2">
+                  <span className="text-sm text-gray-500 font-medium">AI 正在思考</span>
+                  <div className="flex gap-1 ml-2">
+                    <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                    <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-bounce" style={{ animationDelay: '200ms' }}></div>
+                    <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-bounce" style={{ animationDelay: '400ms' }}></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+        {isLoading && !isThinking && (
           <div className="w-full border-b border-gray-100/60">
             <div className="px-6 py-5">
               <div className="flex gap-4">
@@ -513,47 +564,62 @@ const AIChat: React.FC<AIChatProps> = ({ currentFile, fileTreeData, onClose, onN
         <div className="flex items-center gap-2 mb-3">
           <button 
             onClick={onSummary}
-            title="总结"
-            className="w-8 h-8 flex items-center justify-center text-violet-600 hover:text-violet-700 hover:bg-violet-50 rounded-lg transition-colors"
+            className="group relative w-8 h-8 flex items-center justify-center text-violet-600 hover:text-violet-700 hover:bg-violet-50 rounded-lg transition-colors"
           >
             <FileText size={16} />
+            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2.5 py-1.5 bg-gray-900 text-white text-xs font-medium rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-0 z-50 shadow-lg">
+              总结
+              <div className="absolute left-1/2 -translate-x-1/2 top-full w-0 h-0 border-l-[5px] border-r-[5px] border-t-[5px] border-transparent border-t-gray-900"></div>
+            </div>
           </button>
           <button 
             onClick={onMindMap}
-            title="思维导图"
-            className="w-8 h-8 flex items-center justify-center text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors"
+            className="group relative w-8 h-8 flex items-center justify-center text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors"
           >
             <Network size={16} />
+            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2.5 py-1.5 bg-gray-900 text-white text-xs font-medium rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-0 z-50 shadow-lg">
+              思维导图
+              <div className="absolute left-1/2 -translate-x-1/2 top-full w-0 h-0 border-l-[5px] border-r-[5px] border-t-[5px] border-transparent border-t-gray-900"></div>
+            </div>
           </button>
           {onPodcast && (
             <button 
               onClick={onPodcast}
-              title="播客"
-              className="w-8 h-8 flex items-center justify-center text-orange-600 hover:text-orange-700 hover:bg-orange-50 rounded-lg transition-colors"
+              className="group relative w-8 h-8 flex items-center justify-center text-orange-600 hover:text-orange-700 hover:bg-orange-50 rounded-lg transition-colors"
             >
               <Radio size={16} />
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2.5 py-1.5 bg-gray-900 text-white text-xs font-medium rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-0 z-50 shadow-lg">
+                播客
+                <div className="absolute left-1/2 -translate-x-1/2 top-full w-0 h-0 border-l-[5px] border-r-[5px] border-t-[5px] border-transparent border-t-gray-900"></div>
+              </div>
             </button>
           )}
           {onPPT && (
             <button 
               onClick={onPPT}
-              title="AI PPT"
-              className="w-8 h-8 flex items-center justify-center text-pink-600 hover:text-pink-700 hover:bg-pink-50 rounded-lg transition-colors"
+              className="group relative w-8 h-8 flex items-center justify-center text-pink-600 hover:text-pink-700 hover:bg-pink-50 rounded-lg transition-colors"
             >
               <Presentation size={16} />
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2.5 py-1.5 bg-gray-900 text-white text-xs font-medium rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-0 z-50 shadow-lg">
+                AI PPT
+                <div className="absolute left-1/2 -translate-x-1/2 top-full w-0 h-0 border-l-[5px] border-r-[5px] border-t-[5px] border-transparent border-t-gray-900"></div>
+              </div>
             </button>
           )}
           {onQuiz && (
             <button 
               onClick={onQuiz}
-              title="AI 测验"
-              className="w-8 h-8 flex items-center justify-center text-cyan-600 hover:text-cyan-700 hover:bg-cyan-50 rounded-lg transition-colors"
+              className="group relative w-8 h-8 flex items-center justify-center text-cyan-600 hover:text-cyan-700 hover:bg-cyan-50 rounded-lg transition-colors"
             >
               <ClipboardCheck size={16} />
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2.5 py-1.5 bg-gray-900 text-white text-xs font-medium rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-0 z-50 shadow-lg">
+                AI 测验
+                <div className="absolute left-1/2 -translate-x-1/2 top-full w-0 h-0 border-l-[5px] border-r-[5px] border-t-[5px] border-transparent border-t-gray-900"></div>
+              </div>
             </button>
           )}
         </div>
-        <div className="flex flex-col gap-2 bg-gray-50/80 rounded-[20px] pl-5 pr-2 pt-3 pb-3 border border-gray-200/60 shadow-sm focus-within:bg-white focus-within:border-sky-400 focus-within:shadow-lg focus-within:shadow-sky-400/15 transition-all duration-300 group ring-1 ring-transparent focus-within:ring-sky-200/50">
+        <div className="flex flex-col gap-2 bg-gray-50/80 rounded-[20px] pl-5 pr-2 pt-3 pb-3 border border-gray-200/60 shadow-sm focus-within:bg-white focus-within:border-sky-400 focus-within:shadow-lg focus-within:shadow-sky-400/15 transition-all duration-300 ring-1 ring-transparent focus-within:ring-sky-200/50">
           {/* Selected Files Cards */}
           {selectedFiles.length > 0 && (
             <div className="flex items-center gap-2 flex-wrap pb-3 border-b border-gray-200/40">
@@ -568,10 +634,13 @@ const AIChat: React.FC<AIChatProps> = ({ currentFile, fileTreeData, onClose, onN
                   <span className="tracking-tight">{removeExtension(file.name)}</span>
                   <button
                     onClick={() => setSelectedFiles(selectedFiles.filter(f => f.id !== file.id))}
-                    className="ml-0.5 w-5 h-5 rounded-full bg-gray-200/60 hover:bg-gray-300/80 flex items-center justify-center text-gray-600 hover:text-gray-800 opacity-0 group-hover:opacity-100 transition-all duration-200 active:scale-95"
-                    title="移除"
+                    className="group/remove relative ml-0.5 w-5 h-5 rounded-full bg-gray-200/60 hover:bg-gray-300/80 flex items-center justify-center text-gray-600 hover:text-gray-800 opacity-0 group-hover:opacity-100 transition-all duration-200 active:scale-95"
                   >
                     <X size={10} />
+                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2.5 py-1.5 bg-gray-900 text-white text-xs font-medium rounded-lg whitespace-nowrap opacity-0 group-hover/remove:opacity-100 pointer-events-none transition-opacity duration-0 z-50 shadow-lg">
+                      移除
+                      <div className="absolute left-1/2 -translate-x-1/2 top-full w-0 h-0 border-l-[5px] border-r-[5px] border-t-[5px] border-transparent border-t-gray-900"></div>
+                    </div>
                   </button>
                 </div>
               ))}
@@ -590,35 +659,47 @@ const AIChat: React.FC<AIChatProps> = ({ currentFile, fileTreeData, onClose, onN
           <div className="flex items-center justify-between pl-0.5">
             <div className="flex items-center gap-2">
               <button 
-                className="flex items-center justify-center w-7 h-7 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
-                title="@文件"
+                className="group/atfile relative flex items-center justify-center w-7 h-7 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
               >
                 <AtSign size={16} />
+                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2.5 py-1.5 bg-gray-900 text-white text-xs font-medium rounded-lg whitespace-nowrap opacity-0 group-hover/atfile:opacity-100 pointer-events-none transition-opacity duration-0 z-50 shadow-lg">
+                  @文件
+                  <div className="absolute left-1/2 -translate-x-1/2 top-full w-0 h-0 border-l-[5px] border-r-[5px] border-t-[5px] border-transparent border-t-gray-900"></div>
+                </div>
               </button>
               <button 
-                className="flex items-center justify-center w-7 h-7 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
-                title="网络搜索"
+                className="group/search relative flex items-center justify-center w-7 h-7 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
               >
                 <Search size={16} />
+                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2.5 py-1.5 bg-gray-900 text-white text-xs font-medium rounded-lg whitespace-nowrap opacity-0 group-hover/search:opacity-100 pointer-events-none transition-opacity duration-0 z-50 shadow-lg">
+                  网络搜索
+                  <div className="absolute left-1/2 -translate-x-1/2 top-full w-0 h-0 border-l-[5px] border-r-[5px] border-t-[5px] border-transparent border-t-gray-900"></div>
+                </div>
               </button>
               {inputValue.trim() && (
                 <button 
                   onClick={handleSendMessage}
                   disabled={isLoading}
-                  className="w-7 h-7 rounded-lg flex items-center justify-center transition-all duration-300 bg-sky-400 text-white shadow-lg shadow-sky-400/30 hover:bg-sky-500 active:scale-95"
-                  title="发送"
+                  className="group/send relative w-7 h-7 rounded-lg flex items-center justify-center transition-all duration-300 bg-sky-400 text-white shadow-lg shadow-sky-400/30 hover:bg-sky-500 active:scale-95"
                 >
                   <Send size={16} />
+                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2.5 py-1.5 bg-gray-900 text-white text-xs font-medium rounded-lg whitespace-nowrap opacity-0 group-hover/send:opacity-100 pointer-events-none transition-opacity duration-0 z-50 shadow-lg">
+                    发送
+                    <div className="absolute left-1/2 -translate-x-1/2 top-full w-0 h-0 border-l-[5px] border-r-[5px] border-t-[5px] border-transparent border-t-gray-900"></div>
+                  </div>
                 </button>
               )}
             </div>
             <button 
               onClick={() => setIsVoiceMode(true)}
               disabled={isLoading || (isVoiceMode && !!inputValue.trim())}
-              className="w-7 h-7 rounded-lg flex items-center justify-center transition-all duration-300 text-gray-600 hover:text-gray-900 hover:bg-gray-100"
-              title="语音输入"
+              className="group/voice relative w-7 h-7 rounded-lg flex items-center justify-center transition-all duration-300 text-gray-600 hover:text-gray-900 hover:bg-gray-100"
             >
               <Mic size={16} />
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2.5 py-1.5 bg-gray-900 text-white text-xs font-medium rounded-lg whitespace-nowrap opacity-0 group-hover/voice:opacity-100 pointer-events-none transition-opacity duration-0 z-50 shadow-lg">
+                语音输入
+                <div className="absolute left-1/2 -translate-x-1/2 top-full w-0 h-0 border-l-[5px] border-r-[5px] border-t-[5px] border-transparent border-t-gray-900"></div>
+              </div>
             </button>
           </div>
         </div>

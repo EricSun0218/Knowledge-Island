@@ -160,59 +160,19 @@ function App() {
 
   // Placeholder actions
   const handleAISummary = () => {
-    const newContent: GeneratedContent = {
-      id: `summary-${Date.now()}`,
-      type: 'summary',
-      title: 'AI 总结',
-      createdAt: new Date().toLocaleDateString('zh-CN'),
-      preview: '这是 AI 生成的总结内容预览...'
-    };
-    setGeneratedContents(prev => [newContent, ...prev]);
-    alert("AI 摘要生成中... (演示)");
+    // 点击后无效果
   };
   const handleAIMindMap = () => {
-    const newContent: GeneratedContent = {
-      id: `mindmap-${Date.now()}`,
-      type: 'mindmap',
-      title: '思维导图',
-      createdAt: new Date().toLocaleDateString('zh-CN'),
-      preview: '这是 AI 生成的思维导图预览...'
-    };
-    setGeneratedContents(prev => [newContent, ...prev]);
-    alert("正在生成思维导图... (演示)");
+    // 点击后无效果
   };
   const handleAIPodcast = () => {
-    const newContent: GeneratedContent = {
-      id: `podcast-${Date.now()}`,
-      type: 'podcast',
-      title: 'AI 播客',
-      createdAt: new Date().toLocaleDateString('zh-CN'),
-      preview: '这是 AI 生成的播客内容预览...'
-    };
-    setGeneratedContents(prev => [newContent, ...prev]);
-    alert("正在生成播客... (演示)");
+    // 点击后无效果
   };
   const handleAIPPT = () => {
-    const newContent: GeneratedContent = {
-      id: `ppt-${Date.now()}`,
-      type: 'ppt',
-      title: 'AI PPT',
-      createdAt: new Date().toLocaleDateString('zh-CN'),
-      preview: '这是 AI 生成的 PPT 预览...'
-    };
-    setGeneratedContents(prev => [newContent, ...prev]);
-    alert("正在生成 AI PPT... (演示)");
+    // 点击后无效果
   };
   const handleAIQuiz = () => {
-    const newContent: GeneratedContent = {
-      id: `quiz-${Date.now()}`,
-      type: 'quiz',
-      title: 'AI 测验',
-      createdAt: new Date().toLocaleDateString('zh-CN'),
-      preview: '这是 AI 生成的测验内容预览...'
-    };
-    setGeneratedContents(prev => [newContent, ...prev]);
-    alert("正在生成 AI 测验... (演示)");
+    // 点击后无效果
   };
   const handleToggleMyContent = () => {
     setIsMyContentOpen(!isMyContentOpen);

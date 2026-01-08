@@ -1121,6 +1121,23 @@ const ContentViewer: React.FC<ContentViewerProps> = ({ file, isLeftSidebarOpen =
           const matchedElement = bestMatch.node;
           console.log('找到匹配元素:', matchedElement.textContent?.substring(0, 100));
           
+          // 如果匹配分数较低（部分匹配），直接使用原始引用文本设置高亮
+          if (bestMatch.score < 90) {
+            console.log('使用部分匹配，直接设置高亮文本:', searchText);
+            setHighlightText(searchText);
+            
+            // 滚动到元素
+            const rect = matchedElement.getBoundingClientRect();
+            const containerRect = container.getBoundingClientRect();
+            const scrollTop = container.scrollTop + rect.top - containerRect.top - 150;
+            
+            container.scrollTo({
+              top: Math.max(0, scrollTop),
+              behavior: 'smooth'
+            });
+            return;
+          }
+          
           try {
             // 尝试在元素内查找精确的文本位置
             const elementText = matchedElement.textContent || '';
@@ -1188,6 +1205,9 @@ const ContentViewer: React.FC<ContentViewerProps> = ({ file, isLeftSidebarOpen =
                 range.setStart(targetNode, Math.max(0, targetStartIndex));
                 range.setEnd(targetNode, endIndex);
                 
+                // 使用原始引用文本设置高亮，确保高亮函数能正确匹配
+                setHighlightText(searchText);
+                
                 const rect = range.getBoundingClientRect();
                 
                 if (rect.height > 0 && rect.width > 0) {
@@ -1210,7 +1230,8 @@ const ContentViewer: React.FC<ContentViewerProps> = ({ file, isLeftSidebarOpen =
             }
           } catch (e) {
             console.log('使用降级方案：滚动到元素:', e);
-            // 降级方案：直接滚动到包含文本的元素
+            // 降级方案：直接滚动到包含文本的元素，并使用原始引用文本设置高亮
+            setHighlightText(searchText);
             const rect = matchedElement.getBoundingClientRect();
             const containerRect = container.getBoundingClientRect();
             const scrollTop = container.scrollTop + rect.top - containerRect.top - 150;

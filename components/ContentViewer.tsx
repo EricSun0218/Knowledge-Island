@@ -309,11 +309,16 @@ const MarkdownRenderer = ({ content, highlightText }: { content: string; highlig
       const cleanText = text.replace(/\*\*/g, '');
       const cleanHighlightText = highlightText.replace(/\*\*/g, '').trim();
       
+      // 清理标点符号以便更灵活的匹配（用于处理引用标志1、2等）
+      const cleanTextNoPunct = cleanText.replace(/[，。、；：""''（）]/g, '');
+      const cleanHighlightTextNoPunct = cleanHighlightText.replace(/[，。、；：""''（）]/g, '');
+      
       // 检查是否包含高亮文本（先检查清理后的文本，因为这是更通用的方式）
       const cleanMatch = cleanText.includes(cleanHighlightText);
       const originalMatch = text.includes(highlightText);
+      const cleanMatchNoPunct = cleanTextNoPunct.includes(cleanHighlightTextNoPunct) && cleanHighlightTextNoPunct.length > 5;
       
-      if (!originalMatch && !cleanMatch) {
+      if (!originalMatch && !cleanMatch && !cleanMatchNoPunct) {
         return [text];
       }
       
@@ -397,6 +402,133 @@ const MarkdownRenderer = ({ content, highlightText }: { content: string; highlig
         return parts;
       }
       
+      // 如果清理markdown后仍不匹配，尝试清理标点符号后的匹配（用于处理引用标志1、2等）
+      if (cleanMatchNoPunct) {
+        const matchIndex = cleanTextNoPunct.indexOf(cleanHighlightTextNoPunct);
+        
+        // 计算原始文本中对应的起始位置（跳过 ** 标记和标点符号）
+        let originalStartIndex = 0;
+        let cleanIndex = 0;
+        while (cleanIndex < matchIndex && originalStartIndex < text.length) {
+          const char = text[originalStartIndex];
+          if (text.substring(originalStartIndex, originalStartIndex + 2) === '**') {
+            originalStartIndex += 2;
+          } else if (/[，。、；：""''（）]/.test(char)) {
+            originalStartIndex++;
+            // 标点符号不计入cleanIndex
+          } else {
+            originalStartIndex++;
+            cleanIndex++;
+          }
+        }
+        
+        // 找到匹配文本的结束位置（在原始文本中，跳过 ** 标记和标点符号）
+        let originalEndIndex = originalStartIndex;
+        let matchedLength = 0;
+        
+        while (matchedLength < cleanHighlightTextNoPunct.length && originalEndIndex < text.length) {
+          const char = text[originalEndIndex];
+          if (text.substring(originalEndIndex, originalEndIndex + 2) === '**') {
+            originalEndIndex += 2;
+          } else if (/[，。、；：""''（）]/.test(char)) {
+            originalEndIndex++;
+            // 标点符号不计入matchedLength
+          } else {
+            originalEndIndex++;
+            matchedLength++;
+          }
+        }
+        
+        // 提取匹配的文本片段（包含 ** 标记和标点符号）
+        const matchedText = text.substring(originalStartIndex, originalEndIndex);
+        
+        if (originalStartIndex > 0) {
+          parts.push(text.substring(0, originalStartIndex));
+        }
+        parts.push(
+          <mark 
+            key={originalStartIndex} 
+            className="bg-yellow-300/80 text-gray-900 font-medium rounded px-0.5 py-0.5 shadow-sm"
+          >
+            {matchedText}
+          </mark>
+        );
+        if (originalEndIndex < text.length) {
+          parts.push(text.substring(originalEndIndex));
+        }
+        
+        return parts;
+      }
+      
+      // 如果以上都不匹配，尝试部分匹配（用于处理引用标志1、2等，引用文本是原文的子串）
+      if (cleanHighlightTextNoPunct.length > 10) {
+        // 提取关键词（前10个字符和后10个字符）
+        const searchPrefix = cleanHighlightTextNoPunct.substring(0, Math.min(10, cleanHighlightTextNoPunct.length));
+        const searchSuffix = cleanHighlightTextNoPunct.substring(Math.max(0, cleanHighlightTextNoPunct.length - 10));
+        
+        // 检查是否包含关键词
+        if (cleanTextNoPunct.includes(searchPrefix) && cleanTextNoPunct.includes(searchSuffix)) {
+          // 找到前缀和后缀的位置
+          const prefixIndex = cleanTextNoPunct.indexOf(searchPrefix);
+          const suffixIndex = cleanTextNoPunct.lastIndexOf(searchSuffix);
+          
+          // 如果前缀在后缀之前，说明找到了匹配的文本段
+          if (prefixIndex < suffixIndex && suffixIndex - prefixIndex <= cleanHighlightTextNoPunct.length * 2) {
+            // 计算原始文本中对应的起始位置（跳过 ** 标记和标点符号）
+            let originalStartIndex = 0;
+            let cleanIndex = 0;
+            while (cleanIndex < prefixIndex && originalStartIndex < text.length) {
+              const char = text[originalStartIndex];
+              if (text.substring(originalStartIndex, originalStartIndex + 2) === '**') {
+                originalStartIndex += 2;
+              } else if (/[，。、；：""''（）]/.test(char)) {
+                originalStartIndex++;
+              } else {
+                originalStartIndex++;
+                cleanIndex++;
+              }
+            }
+            
+            // 计算原始文本中对应的结束位置
+            let originalEndIndex = originalStartIndex;
+            let matchedLength = 0;
+            const targetLength = suffixIndex - prefixIndex + searchSuffix.length;
+            
+            while (matchedLength < targetLength && originalEndIndex < text.length) {
+              const char = text[originalEndIndex];
+              if (text.substring(originalEndIndex, originalEndIndex + 2) === '**') {
+                originalEndIndex += 2;
+              } else if (/[，。、；：""''（）]/.test(char)) {
+                originalEndIndex++;
+              } else {
+                originalEndIndex++;
+                matchedLength++;
+              }
+            }
+            
+            // 提取匹配的文本片段
+            const matchedText = text.substring(originalStartIndex, originalEndIndex);
+            
+            if (originalStartIndex > 0) {
+              parts.push(text.substring(0, originalStartIndex));
+            }
+            parts.push(
+              <mark 
+                key={originalStartIndex} 
+                className="bg-yellow-300/80 text-gray-900 font-medium rounded px-0.5 py-0.5 shadow-sm"
+              >
+                {matchedText}
+              </mark>
+            );
+            if (originalEndIndex < text.length) {
+              parts.push(text.substring(originalEndIndex));
+            }
+            
+            return parts;
+          }
+        }
+      }
+      
       return [text];
     };
     
@@ -432,10 +564,10 @@ const MarkdownRenderer = ({ content, highlightText }: { content: string; highlig
                     
                     return (
                         <div key={idx} className="my-8">
-                            <div className="w-full aspect-video rounded-2xl overflow-hidden bg-black shadow-sm">
+                            <div className="w-full aspect-video rounded-2xl overflow-hidden bg-transparent shadow-xl shadow-gray-400/60">
                                 <video 
                                     controls 
-                                    className="w-full h-full" 
+                                    className="w-full h-full bg-transparent object-cover" 
                                     src={encodedPath}
                                     preload="metadata"
                                 >
@@ -468,7 +600,7 @@ const MarkdownRenderer = ({ content, highlightText }: { content: string; highlig
                         const bvid = bvidMatch[0];
                         return (
                             <div key={idx} className="my-8">
-                                <div className="w-full aspect-video rounded-2xl overflow-hidden bg-black relative">
+                                <div className="w-full aspect-video rounded-2xl overflow-hidden bg-transparent shadow-xl shadow-gray-400/60 relative">
                                     <iframe
                                         src={`https://player.bilibili.com/player.html?bvid=${bvid}&page=1&high_quality=1&autoplay=0&danmaku=0&as_wide=1`}
                                         scrolling="no"
@@ -494,11 +626,67 @@ const MarkdownRenderer = ({ content, highlightText }: { content: string; highlig
                 // List Items (Simple) with highlight support
                 const listMatch = line.match(/^(\d+\.|-)\s+(.+)$/);
                 if (listMatch) {
-                    const highlightedText = highlightTextInString(listMatch[2]);
+                    // 处理列表项中的markdown格式
+                    const renderFormattedText = (text: string): React.ReactNode[] => {
+                      const parts: React.ReactNode[] = [];
+                      let lastIndex = 0;
+                      
+                      // 匹配 **加粗**
+                      const boldRegex = /\*\*(.*?)\*\*/g;
+                      let match;
+                      const matches: Array<{index: number, length: number, text: string, type: 'bold'}> = [];
+                      
+                      while ((match = boldRegex.exec(text)) !== null) {
+                        matches.push({
+                          index: match.index,
+                          length: match[0].length,
+                          text: match[1],
+                          type: 'bold'
+                        });
+                      }
+                      
+                      // 按索引排序
+                      matches.sort((a, b) => a.index - b.index);
+                      
+                      // 构建渲染结果
+                      matches.forEach((m, i) => {
+                        // 添加匹配前的文本
+                        if (m.index > lastIndex) {
+                          const beforeText = text.substring(lastIndex, m.index);
+                          const highlightedBefore = highlightTextInString(beforeText);
+                          parts.push(...highlightedBefore.map((part, idx) => 
+                            typeof part === 'string' ? <span key={`before-${i}-${idx}`}>{part}</span> : part
+                          ));
+                        }
+                        
+                        // 添加加粗文本（带高亮支持）
+                        const highlightedBold = highlightTextInString(m.text);
+                        parts.push(
+                          <strong key={`bold-${i}`} className="text-gray-900 font-bold">
+                            {highlightedBold}
+                          </strong>
+                        );
+                        
+                        lastIndex = m.index + m.length;
+                      });
+                      
+                      // 添加剩余文本
+                      if (lastIndex < text.length) {
+                        const remainingText = text.substring(lastIndex);
+                        const highlightedRemaining = highlightTextInString(remainingText);
+                        parts.push(...highlightedRemaining.map((part, idx) => 
+                          typeof part === 'string' ? <span key={`remaining-${idx}`}>{part}</span> : part
+                        ));
+                      }
+                      
+                      return parts.length > 0 ? parts : [text];
+                    };
+                    
+                    const formattedText = renderFormattedText(listMatch[2]);
                     return (
                         <div key={idx} className="flex gap-2 ml-4">
                              <span className="font-bold text-blue-600">{listMatch[1]}</span>
-                             <span className="text-gray-700 leading-relaxed">{highlightedText}</span>
+                             <span className="text-gray-700 leading-relaxed">{formattedText}</span>
                         </div>
                     )
                 }
@@ -506,20 +694,65 @@ const MarkdownRenderer = ({ content, highlightText }: { content: string; highlig
                 // Empty line
                 if (!line.trim()) return <div key={idx} className="h-2"></div>;
 
-                // Bold text parser (simple) with highlight support
-                const parts = line.split(/(\*\*.*?\*\*)/g);
+                // 处理包含markdown格式的文本（加粗、斜体等）
+                const renderFormattedText = (text: string): React.ReactNode[] => {
+                  const parts: React.ReactNode[] = [];
+                  let lastIndex = 0;
+                  
+                  // 匹配 **加粗**
+                  const boldRegex = /\*\*(.*?)\*\*/g;
+                  let match;
+                  const matches: Array<{index: number, length: number, text: string, type: 'bold'}> = [];
+                  
+                  while ((match = boldRegex.exec(text)) !== null) {
+                    matches.push({
+                      index: match.index,
+                      length: match[0].length,
+                      text: match[1],
+                      type: 'bold'
+                    });
+                  }
+                  
+                  // 按索引排序
+                  matches.sort((a, b) => a.index - b.index);
+                  
+                  // 构建渲染结果
+                  matches.forEach((m, i) => {
+                    // 添加匹配前的文本
+                    if (m.index > lastIndex) {
+                      const beforeText = text.substring(lastIndex, m.index);
+                      const highlightedBefore = highlightTextInString(beforeText);
+                      parts.push(...highlightedBefore.map((part, idx) => 
+                        typeof part === 'string' ? <span key={`before-${i}-${idx}`}>{part}</span> : part
+                      ));
+                    }
+                    
+                    // 添加加粗文本（带高亮支持）
+                    const highlightedBold = highlightTextInString(m.text);
+                    parts.push(
+                      <strong key={`bold-${i}`} className="text-gray-900 font-bold">
+                        {highlightedBold}
+                      </strong>
+                    );
+                    
+                    lastIndex = m.index + m.length;
+                  });
+                  
+                  // 添加剩余文本
+                  if (lastIndex < text.length) {
+                    const remainingText = text.substring(lastIndex);
+                    const highlightedRemaining = highlightTextInString(remainingText);
+                    parts.push(...highlightedRemaining.map((part, idx) => 
+                      typeof part === 'string' ? <span key={`remaining-${idx}`}>{part}</span> : part
+                    ));
+                  }
+                  
+                  return parts.length > 0 ? parts : [text];
+                };
+                
                 return (
                     <p key={idx} className="text-gray-700 leading-relaxed text-lg">
-                        {parts.map((part, pIdx) => {
-                            if (part.startsWith('**') && part.endsWith('**')) {
-                                const boldText = part.slice(2, -2);
-                                const highlightedBold = highlightTextInString(boldText);
-                                return <strong key={pIdx} className="text-gray-900 font-bold">{highlightedBold}</strong>
-                            }
-                            // 对普通文本应用高亮
-                            const highlightedPart = highlightTextInString(part);
-                            return <span key={pIdx}>{highlightedPart}</span>;
-                        })}
+                        {renderFormattedText(line)}
                     </p>
                 );
             })}
@@ -618,7 +851,7 @@ const VideoPlayer: React.FC<{ file: FileNode; isLeftSidebarOpen: boolean; isRigh
   return (
     <div className={`${leftMargin} ${maxWidth} ${sidePadding} py-4 md:py-6 min-h-full relative`}>
       <div className="flex flex-col h-full">
-        <div className="w-full aspect-video bg-black rounded-2xl overflow-hidden shadow-sm mb-6">
+        <div className="w-full aspect-video bg-transparent rounded-2xl overflow-hidden shadow-xl shadow-gray-400/60 mb-6">
           {error && (
             <div className="w-full h-full flex flex-col items-center justify-center text-red-500 bg-red-50 p-4">
               <p className="text-center font-bold">{error}</p>
@@ -629,7 +862,7 @@ const VideoPlayer: React.FC<{ file: FileNode; isLeftSidebarOpen: boolean; isRigh
           <video 
             ref={videoRef}
             controls 
-            className="w-full h-full" 
+            className="w-full h-full object-cover bg-transparent" 
             src={getVideoSrc()}
             preload="metadata"
             crossOrigin="anonymous"
@@ -757,6 +990,33 @@ const ContentViewer: React.FC<ContentViewerProps> = ({ file, isLeftSidebarOpen =
               }
             }
           }
+          // 尝试清理标点符号后的匹配（用于处理引用标志1、2等包含标点的文本）
+          else if (cleanNodeText.includes(cleanSearchText) && cleanSearchText.length > 5) {
+            console.log('找到标点清理后匹配（元素）:', nodeText.substring(0, 50));
+            if (!bestMatch || bestMatch.score < 85) {
+              bestMatch = { node: htmlEl, text: nodeText, score: 85 };
+            }
+          }
+          // 尝试部分匹配：如果引用文本是原文的子串（用于处理引用标志1、2等）
+          else if (searchTextCleaned.length > 10) {
+            // 提取关键词（前10个字符和后10个字符）
+            const searchPrefix = searchTextCleaned.substring(0, Math.min(10, searchTextCleaned.length));
+            const searchSuffix = searchTextCleaned.substring(Math.max(0, searchTextCleaned.length - 10));
+            const nodeTextCleanedNoPunct = nodeTextCleaned.replace(/[，。、；：""''（）]/g, '');
+            
+            // 检查是否包含关键词
+            if (nodeTextCleanedNoPunct.includes(searchPrefix) && nodeTextCleanedNoPunct.includes(searchSuffix)) {
+              // 计算匹配度：基于匹配的关键词长度
+              const matchLength = Math.min(searchPrefix.length, searchSuffix.length);
+              const score = (matchLength / searchTextCleaned.length) * 80;
+              
+              // 放宽阈值，便于较短引用（如引用标志1、2）也能匹配
+              if (score > 30 && (!bestMatch || score > bestMatch.score)) {
+                console.log('找到部分匹配（元素）:', { nodeText: nodeText.substring(0, 50), score });
+                bestMatch = { node: htmlEl, text: nodeText, score };
+              }
+            }
+          }
         }
         
         // 如果还没找到，使用 TreeWalker 查找文本节点
@@ -796,6 +1056,39 @@ const ContentViewer: React.FC<ContentViewerProps> = ({ file, isLeftSidebarOpen =
                 const parentEl = foundNode.parentElement as HTMLElement;
                 if (parentEl) {
                   bestMatch = { node: parentEl, text: nodeText, score: 90 };
+                }
+              }
+            }
+            // 尝试清理标点符号后的匹配（用于处理引用标志1、2等包含标点的文本）
+            else if (cleanNodeText.includes(cleanSearchText) && cleanSearchText.length > 5) {
+              console.log('找到标点清理后匹配（文本节点）:', nodeText.substring(0, 50));
+              if (!bestMatch || bestMatch.score < 85) {
+                const parentEl = foundNode.parentElement as HTMLElement;
+                if (parentEl) {
+                  bestMatch = { node: parentEl, text: nodeText, score: 85 };
+                }
+              }
+            }
+            // 尝试部分匹配：如果引用文本是原文的子串（用于处理引用标志1、2等）
+            else if (searchTextCleaned.length > 10) {
+              // 提取关键词（前10个字符和后10个字符）
+              const searchPrefix = searchTextCleaned.substring(0, Math.min(10, searchTextCleaned.length));
+              const searchSuffix = searchTextCleaned.substring(Math.max(0, searchTextCleaned.length - 10));
+              const nodeTextCleanedNoPunct = nodeTextCleaned.replace(/[，。、；：""''（）]/g, '');
+              
+              // 检查是否包含关键词
+              if (nodeTextCleanedNoPunct.includes(searchPrefix) && nodeTextCleanedNoPunct.includes(searchSuffix)) {
+                // 计算匹配度：基于匹配的关键词长度
+                const matchLength = Math.min(searchPrefix.length, searchSuffix.length);
+                const score = (matchLength / searchTextCleaned.length) * 80;
+                
+                // 放宽阈值，便于较短引用（如引用标志1、2）也能匹配
+                if (score > 30 && (!bestMatch || score > bestMatch.score)) {
+                  console.log('找到部分匹配（文本节点）:', { nodeText: nodeText.substring(0, 50), score });
+                  const parentEl = foundNode.parentElement as HTMLElement;
+                  if (parentEl) {
+                    bestMatch = { node: parentEl, text: nodeText, score };
+                  }
                 }
               }
             }

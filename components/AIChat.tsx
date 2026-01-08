@@ -175,6 +175,259 @@ const useLiveSession = (
 
 
 // --------------------------------------------------------
+// CITATION TOOLTIP COMPONENT (智能定位)
+// --------------------------------------------------------
+
+interface CitationTooltipProps {
+  citationIndex: number;
+  displayName: string;
+  citationText: string | null;
+  fileNode: FileNode;
+  onNavigateToFile: (fileId: string) => void;
+  hoveredCitationIndex: number | null;
+  setHoveredCitationIndex: (index: number | null) => void;
+}
+
+const CitationTooltip: React.FC<CitationTooltipProps> = ({
+  citationIndex,
+  displayName,
+  citationText,
+  fileNode,
+  onNavigateToFile,
+  hoveredCitationIndex,
+  setHoveredCitationIndex
+}) => {
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const tooltipRef = useRef<HTMLDivElement>(null);
+  const [tooltipStyle, setTooltipStyle] = useState<React.CSSProperties>({});
+  const [arrowStyle, setArrowStyle] = useState<React.CSSProperties>({});
+
+  const isHovered = hoveredCitationIndex === citationIndex;
+
+  // 智能定位：检测提示框是否会超出容器边界，动态调整位置
+  useEffect(() => {
+    if (!isHovered || !buttonRef.current || !tooltipRef.current) {
+      setTooltipStyle({});
+      setArrowStyle({});
+      return;
+    }
+
+    const updatePosition = () => {
+      const button = buttonRef.current;
+      const tooltip = tooltipRef.current;
+      if (!button || !tooltip) return;
+
+      // 获取消息容器（父容器）
+      const messageContainer = button.closest('.overflow-y-auto');
+      if (!messageContainer) return;
+
+      // 获取容器信息
+      const containerRect = messageContainer.getBoundingClientRect();
+      const containerWidth = containerRect.width;
+      const containerPadding = 16; // 容器内边距
+      
+      // 获取按钮和span的位置
+      const buttonRect = button.getBoundingClientRect();
+      const spanElement = button.parentElement;
+      if (!spanElement) return;
+      const spanRect = spanElement.getBoundingClientRect();
+      
+      // 计算按钮中心相对于span的位置（箭头需要指向这里）
+      const buttonCenterXInSpan = buttonRect.left - spanRect.left + buttonRect.width / 2;
+      
+      // 计算按钮中心相对于容器的位置
+      const buttonCenterXInContainer = buttonRect.left - containerRect.left + buttonRect.width / 2;
+      
+      // 先临时设置居中，获取提示框实际宽度
+      tooltip.style.left = '50%';
+      tooltip.style.right = 'auto';
+      tooltip.style.transform = 'translateX(-50%)';
+      tooltip.style.maxWidth = '320px'; // 降低最大宽度，让气泡更紧凑
+      const tooltipRect = tooltip.getBoundingClientRect();
+      const tooltipWidth = tooltipRect.width;
+      
+      // 计算span在容器中的位置
+      const spanLeftInContainer = spanRect.left - containerRect.left;
+      
+      // 箭头必须指向按钮中心，计算箭头在容器中的位置
+      const arrowXInContainer = buttonCenterXInContainer;
+      
+      // 计算理想情况下气泡的位置（箭头在气泡中心）
+      const idealTooltipLeftInContainer = arrowXInContainer - tooltipWidth / 2;
+      const idealTooltipRightInContainer = arrowXInContainer + tooltipWidth / 2;
+      
+      // 判断是否需要调整位置
+      if (idealTooltipLeftInContainer < containerPadding) {
+        // 太靠左：气泡左边缘固定在容器左边界，箭头在气泡内偏左
+        const tooltipLeftInContainer = containerPadding;
+        const maxRight = containerWidth - containerPadding;
+        const maxTooltipWidth = maxRight - containerPadding;
+        const actualTooltipWidth = Math.min(tooltipWidth, maxTooltipWidth);
+        
+        // 箭头在气泡中的位置（相对于气泡左边缘）
+        const arrowOffsetInTooltip = arrowXInContainer - tooltipLeftInContainer;
+        
+        // 确保箭头在气泡内（至少距离边缘15%，最多85%）
+        const minArrowOffset = actualTooltipWidth * 0.15;
+        const maxArrowOffset = actualTooltipWidth * 0.85;
+        const constrainedArrowOffset = Math.max(minArrowOffset, Math.min(maxArrowOffset, arrowOffsetInTooltip));
+        
+        // 计算气泡左边缘相对于span的位置
+        const tooltipLeftInSpan = tooltipLeftInContainer - spanLeftInContainer;
+        
+        setTooltipStyle({
+          left: `${tooltipLeftInSpan}px`,
+          right: 'auto',
+          transform: 'none',
+          maxWidth: `${actualTooltipWidth}px`
+        });
+        
+        // 箭头指向按钮中心（在气泡底部偏左）
+        setArrowStyle({
+          left: `${(constrainedArrowOffset / actualTooltipWidth) * 100}%`,
+          transform: 'translateX(-50%)'
+        });
+      } else if (idealTooltipRightInContainer > containerWidth - containerPadding) {
+        // 太靠右：气泡右边缘固定在容器右边界，箭头在气泡内偏右
+        const maxRight = containerWidth - containerPadding;
+        const maxTooltipWidth = maxRight - containerPadding;
+        const actualTooltipWidth = Math.min(tooltipWidth, maxTooltipWidth);
+        const tooltipRightInContainer = maxRight;
+        const tooltipLeftInContainer = tooltipRightInContainer - actualTooltipWidth;
+        
+        // 箭头在气泡中的位置（相对于气泡左边缘）- 精确指向按钮中心
+        const arrowOffsetInTooltip = arrowXInContainer - tooltipLeftInContainer;
+        
+        // 确保箭头在气泡内（至少距离边缘6px，避免太靠边）
+        const minArrowOffset = 6;
+        const maxArrowOffset = actualTooltipWidth - 6;
+        const constrainedArrowOffset = Math.max(minArrowOffset, Math.min(maxArrowOffset, arrowOffsetInTooltip));
+        
+        // 计算气泡左边缘相对于span的位置
+        const tooltipLeftInSpan = tooltipLeftInContainer - spanLeftInContainer;
+        
+        setTooltipStyle({
+          left: `${tooltipLeftInSpan}px`,
+          right: 'auto',
+          transform: 'none',
+          maxWidth: `${actualTooltipWidth}px`
+        });
+        
+        // 箭头精确指向按钮中心（在气泡底部偏右）
+        setArrowStyle({
+          left: `${(constrainedArrowOffset / actualTooltipWidth) * 100}%`,
+          transform: 'translateX(-50%)'
+        });
+      } else {
+        // 居中显示：箭头在中心，指向按钮中心
+        setTooltipStyle({
+          left: '50%',
+          right: 'auto',
+          transform: 'translateX(-50%)',
+          maxWidth: '320px'
+        });
+        setArrowStyle({
+          left: '50%',
+          transform: 'translateX(-50%)'
+        });
+      }
+    };
+
+    // 延迟执行以确保DOM已更新
+    const timeoutId = setTimeout(updatePosition, 50);
+    
+    // 监听窗口大小变化和滚动
+    window.addEventListener('resize', updatePosition);
+    const container = buttonRef.current?.closest('.overflow-y-auto');
+    if (container) {
+      container.addEventListener('scroll', updatePosition);
+    }
+
+    return () => {
+      clearTimeout(timeoutId);
+      window.removeEventListener('resize', updatePosition);
+      if (container) {
+        container.removeEventListener('scroll', updatePosition);
+      }
+    };
+  }, [isHovered]);
+
+  return (
+    <span className="inline-flex items-center align-baseline relative mx-0.5">
+      {/* 引用符号 - 默认显示 */}
+      <button 
+        ref={buttonRef}
+        onMouseEnter={() => setHoveredCitationIndex(citationIndex)}
+        onMouseLeave={() => setHoveredCitationIndex(null)}
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          console.log('引用按钮被点击:', { 
+            fileId: fileNode.id, 
+            fileName: fileNode.name,
+            citationText: citationText,
+            hasCitationText: !!citationText
+          });
+          
+          // 如果有关联的引用文本，触发跳转和高亮事件
+          if (citationText) {
+            // 触发自定义事件，传递文件ID和引用文本
+            // App.tsx 会处理文件切换和高亮
+            const event = new CustomEvent('navigateToCitation', {
+              detail: { fileId: fileNode.id, citationText: citationText.trim() }
+            });
+            console.log('触发 navigateToCitation 事件:', event.detail);
+            window.dispatchEvent(event);
+          } else {
+            // 如果没有引用文本，只切换文件
+            onNavigateToFile(fileNode.id);
+          }
+        }}
+        className="citation-button inline-flex items-center justify-center w-5 h-5 rounded-full bg-sky-50 hover:bg-sky-100 text-sky-600 hover:text-sky-700 transition-all text-[11px] font-bold cursor-pointer hover:scale-110 active:scale-95 border border-sky-200/60 hover:border-sky-300 shadow-sm hover:shadow-md"
+        title={citationText ? `${displayName}: ${citationText.substring(0, 30)}${citationText.length > 30 ? '...' : ''}` : displayName}
+      >
+        {citationIndex}
+      </button>
+      
+      {/* 悬停时显示的文件名和引用文本提示 - 智能定位，确保完整显示 */}
+      {isHovered && (
+        <div 
+          ref={tooltipRef}
+          className="absolute bottom-full mb-2 px-4 py-3 bg-white border border-gray-200 rounded-xl shadow-lg pointer-events-none z-50 min-w-[200px] max-w-[320px] animate-in fade-in zoom-in-95 duration-200"
+          style={{
+            ...tooltipStyle,
+            wordWrap: 'break-word',
+            overflowWrap: 'break-word',
+            boxSizing: 'border-box'
+          }}
+        >
+          <div className="flex items-start gap-2">
+            <div className="flex-shrink-0 w-1 h-4 bg-sky-500 rounded-full mt-0.5"></div>
+            <div className="flex-1 min-w-0 overflow-hidden">
+              <div className="font-bold text-gray-900 text-sm mb-1.5 leading-tight break-words">{displayName}</div>
+              {citationText && (
+                <div className="text-gray-700 text-xs leading-relaxed break-words overflow-wrap-anywhere">
+                  {citationText}
+                </div>
+              )}
+            </div>
+          </div>
+          {/* 箭头 - 根据位置动态调整 */}
+          <div 
+            className="absolute top-full w-0 h-0 border-l-[6px] border-r-[6px] border-t-[6px] border-transparent border-t-white"
+            style={arrowStyle}
+          ></div>
+          <div 
+            className="absolute top-full -mt-[1px] w-0 h-0 border-l-[6px] border-r-[6px] border-t-[6px] border-transparent border-t-gray-200"
+            style={arrowStyle}
+          ></div>
+        </div>
+      )}
+    </span>
+  );
+};
+
+// --------------------------------------------------------
 // COMPONENT
 // --------------------------------------------------------
 
@@ -286,54 +539,16 @@ const AIChat: React.FC<AIChatProps> = ({ currentFile, fileTreeData, onClose, onN
         
         if (fileNode) {
           return (
-            <span key={index} className="inline-flex items-center align-baseline relative mx-0.5">
-              {/* 引用符号 - 默认显示 */}
-              <button 
-                onMouseEnter={() => setHoveredCitationIndex(currentCitationIndex)}
-                onMouseLeave={() => setHoveredCitationIndex(null)}
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  console.log('引用按钮被点击:', { 
-                    fileId: fileNode.id, 
-                    fileName: fileNode.name,
-                    citationText: citationText,
-                    hasCitationText: !!citationText
-                  });
-                  
-                  // 如果有关联的引用文本，触发跳转和高亮事件
-                  if (citationText) {
-                    // 触发自定义事件，传递文件ID和引用文本
-                    // App.tsx 会处理文件切换和高亮
-                    const event = new CustomEvent('navigateToCitation', {
-                      detail: { fileId: fileNode.id, citationText: citationText.trim() }
-                    });
-                    console.log('触发 navigateToCitation 事件:', event.detail);
-                    window.dispatchEvent(event);
-                  } else {
-                    // 如果没有引用文本，只切换文件
-                    onNavigateToFile(fileNode.id);
-                  }
-                }}
-                className="citation-button inline-flex items-center justify-center w-5 h-5 rounded-full bg-sky-50 hover:bg-sky-100 text-sky-600 hover:text-sky-700 transition-all text-[11px] font-bold cursor-pointer hover:scale-110 active:scale-95 border border-sky-200/60 hover:border-sky-300 shadow-sm hover:shadow-md"
-                title={citationText ? `${displayName}: ${citationText.substring(0, 30)}${citationText.length > 30 ? '...' : ''}` : displayName}
-              >
-                {currentCitationIndex}
-              </button>
-              
-              {/* 悬停时显示的文件名和引用文本提示 - 只有当前悬停的引用才显示 */}
-              {isHovered && (
-                <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 px-3 py-1.5 bg-gray-900/95 text-white text-xs font-medium rounded-lg max-w-xs pointer-events-none z-50 backdrop-blur-sm shadow-xl animate-in fade-in zoom-in-95 duration-200">
-                  <div className="font-bold">{displayName}</div>
-                  {citationText && (
-                    <div className="mt-1 text-gray-300 text-[11px] line-clamp-2">
-                      {citationText}
-                    </div>
-                  )}
-                  <div className="absolute left-1/2 -translate-x-1/2 top-full w-0 h-0 border-l-[6px] border-r-[6px] border-t-[6px] border-transparent border-t-gray-900/95"></div>
-                </div>
-              )}
-            </span>
+            <CitationTooltip 
+              key={index}
+              citationIndex={currentCitationIndex}
+              displayName={displayName}
+              citationText={citationText}
+              fileNode={fileNode}
+              onNavigateToFile={onNavigateToFile}
+              hoveredCitationIndex={hoveredCitationIndex}
+              setHoveredCitationIndex={setHoveredCitationIndex}
+            />
           );
         }
         // If file not found in tree
@@ -397,30 +612,61 @@ const AIChat: React.FC<AIChatProps> = ({ currentFile, fileTreeData, onClose, onN
     setCurrentTypingMessageId(aiMsgId);
     setTypingText('');
 
-    // 打字机效果：逐字显示
-    let currentIndex = 0;
-    const typingSpeed = 60; // 每个字符的延迟（毫秒）
+    // 按段落/句子生成效果（一片一片式）
+    // 将文本按段落和句子分割
+    const paragraphs = fixedAnswer.split(/\n\n+/).filter(p => p.trim());
+    let currentParagraphIndex = 0;
+    let currentText = '';
+    const chunkDelay = 80; // 每个文本块的延迟（毫秒）
 
-    const typeNextChar = () => {
-      if (currentIndex < fixedAnswer.length) {
-        setTypingText(fixedAnswer.substring(0, currentIndex + 1));
-        currentIndex++;
-        typingIntervalRef.current = setTimeout(typeNextChar, typingSpeed);
-      } else {
-        // 打字完成，更新消息
-        setMessages(prev => prev.map(msg => 
-          msg.id === aiMsgId ? { ...msg, text: fixedAnswer } : msg
-        ));
-        setCurrentTypingMessageId(null);
-        setTypingText('');
-        if (typingIntervalRef.current) {
-          clearTimeout(typingIntervalRef.current);
-          typingIntervalRef.current = null;
-        }
+    const typeNextChunk = () => {
+      if (currentParagraphIndex < paragraphs.length) {
+        const paragraph = paragraphs[currentParagraphIndex];
+        // 按句子分割（中文句号、问号、感叹号）
+        const sentences = paragraph.split(/([。！？\n])/).filter(s => s.trim());
+        let sentenceIndex = 0;
+        
+        const addNextSentence = () => {
+          if (sentenceIndex < sentences.length) {
+            // 添加当前句子
+            currentText += sentences[sentenceIndex];
+            if (sentenceIndex + 1 < sentences.length && /[。！？]/.test(sentences[sentenceIndex])) {
+              currentText += sentences[sentenceIndex + 1];
+              sentenceIndex += 2;
+            } else {
+              sentenceIndex++;
+            }
+            
+            setTypingText(currentText);
+            typingIntervalRef.current = window.setTimeout(addNextSentence, chunkDelay);
+          } else {
+            // 当前段落完成，添加换行
+            currentText += '\n\n';
+            currentParagraphIndex++;
+            setTypingText(currentText);
+            
+            if (currentParagraphIndex < paragraphs.length) {
+              typingIntervalRef.current = window.setTimeout(typeNextChunk, chunkDelay * 2);
+            } else {
+              // 全部完成
+              setMessages(prev => prev.map(msg => 
+                msg.id === aiMsgId ? { ...msg, text: fixedAnswer } : msg
+              ));
+              setCurrentTypingMessageId(null);
+              setTypingText('');
+              if (typingIntervalRef.current) {
+                clearTimeout(typingIntervalRef.current);
+                typingIntervalRef.current = null;
+              }
+            }
+          }
+        };
+        
+        addNextSentence();
       }
     };
 
-    typeNextChar();
+    typeNextChunk();
   };
 
   // Scroll to bottom
@@ -526,10 +772,10 @@ const AIChat: React.FC<AIChatProps> = ({ currentFile, fileTreeData, onClose, onN
                 {msg.text}
               </div>
             ) : (
-              // AI 消息：类似 Gemini/ChatGPT 的显示形式
+              // AI 消息：内容放在头像下面，减少左侧空白
               <div className="w-full border-b border-gray-100/40 hover:bg-gray-50/50 transition-colors group">
-                <div className="px-6 py-6 max-w-none">
-                  <div className="flex gap-4">
+                <div className="px-4 py-4 max-w-none">
+                  <div className="flex flex-col gap-2">
                     {/* AI 图标 */}
                     <div className="flex-shrink-0">
                       <div className="w-8 h-8 rounded-full bg-white shadow-sm border border-gray-200/60 flex items-center justify-center group-hover:shadow-md transition-shadow">
@@ -537,7 +783,7 @@ const AIChat: React.FC<AIChatProps> = ({ currentFile, fileTreeData, onClose, onN
                       </div>
                     </div>
                     {/* 消息内容 */}
-                    <div className="flex-1 min-w-0 pt-0.5">
+                    <div className="flex-1 min-w-0 pl-0">
                       {currentTypingMessageId === msg.id && typingText ? (
                         <div className="text-[15px] leading-7 text-gray-800 whitespace-pre-wrap">
                           {renderMessageText(typingText, msg.id)}
@@ -610,9 +856,10 @@ const AIChat: React.FC<AIChatProps> = ({ currentFile, fileTreeData, onClose, onN
             className="group relative w-8 h-8 flex items-center justify-center text-violet-600 hover:text-violet-700 hover:bg-violet-50 rounded-lg transition-colors"
           >
             <FileText size={16} />
-            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2.5 py-1.5 bg-gray-900 text-white text-xs font-medium rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-0 z-50 shadow-lg">
+            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-white border border-gray-200 text-gray-900 text-xs font-medium rounded-xl whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-200 z-50 shadow-lg">
               总结
-              <div className="absolute left-1/2 -translate-x-1/2 top-full w-0 h-0 border-l-[5px] border-r-[5px] border-t-[5px] border-transparent border-t-gray-900"></div>
+              <div className="absolute left-1/2 -translate-x-1/2 top-full w-0 h-0 border-l-[5px] border-r-[5px] border-t-[5px] border-transparent border-t-white"></div>
+              <div className="absolute left-1/2 -translate-x-1/2 top-full -mt-[1px] w-0 h-0 border-l-[5px] border-r-[5px] border-t-[5px] border-transparent border-t-gray-200"></div>
             </div>
           </button>
           <button 
@@ -620,9 +867,10 @@ const AIChat: React.FC<AIChatProps> = ({ currentFile, fileTreeData, onClose, onN
             className="group relative w-8 h-8 flex items-center justify-center text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors"
           >
             <Network size={16} />
-            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2.5 py-1.5 bg-gray-900 text-white text-xs font-medium rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-0 z-50 shadow-lg">
+            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-white border border-gray-200 text-gray-900 text-xs font-medium rounded-xl whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-200 z-50 shadow-lg">
               思维导图
-              <div className="absolute left-1/2 -translate-x-1/2 top-full w-0 h-0 border-l-[5px] border-r-[5px] border-t-[5px] border-transparent border-t-gray-900"></div>
+              <div className="absolute left-1/2 -translate-x-1/2 top-full w-0 h-0 border-l-[5px] border-r-[5px] border-t-[5px] border-transparent border-t-white"></div>
+              <div className="absolute left-1/2 -translate-x-1/2 top-full -mt-[1px] w-0 h-0 border-l-[5px] border-r-[5px] border-t-[5px] border-transparent border-t-gray-200"></div>
             </div>
           </button>
           {onPodcast && (
@@ -631,9 +879,10 @@ const AIChat: React.FC<AIChatProps> = ({ currentFile, fileTreeData, onClose, onN
               className="group relative w-8 h-8 flex items-center justify-center text-orange-600 hover:text-orange-700 hover:bg-orange-50 rounded-lg transition-colors"
             >
               <Radio size={16} />
-              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2.5 py-1.5 bg-gray-900 text-white text-xs font-medium rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-0 z-50 shadow-lg">
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-white border border-gray-200 text-gray-900 text-xs font-medium rounded-xl whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-200 z-50 shadow-lg">
                 播客
-                <div className="absolute left-1/2 -translate-x-1/2 top-full w-0 h-0 border-l-[5px] border-r-[5px] border-t-[5px] border-transparent border-t-gray-900"></div>
+                <div className="absolute left-1/2 -translate-x-1/2 top-full w-0 h-0 border-l-[5px] border-r-[5px] border-t-[5px] border-transparent border-t-white"></div>
+                <div className="absolute left-1/2 -translate-x-1/2 top-full -mt-[1px] w-0 h-0 border-l-[5px] border-r-[5px] border-t-[5px] border-transparent border-t-gray-200"></div>
               </div>
             </button>
           )}
@@ -643,9 +892,10 @@ const AIChat: React.FC<AIChatProps> = ({ currentFile, fileTreeData, onClose, onN
               className="group relative w-8 h-8 flex items-center justify-center text-pink-600 hover:text-pink-700 hover:bg-pink-50 rounded-lg transition-colors"
             >
               <Presentation size={16} />
-              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2.5 py-1.5 bg-gray-900 text-white text-xs font-medium rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-0 z-50 shadow-lg">
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-white border border-gray-200 text-gray-900 text-xs font-medium rounded-xl whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-200 z-50 shadow-lg">
                 AI PPT
-                <div className="absolute left-1/2 -translate-x-1/2 top-full w-0 h-0 border-l-[5px] border-r-[5px] border-t-[5px] border-transparent border-t-gray-900"></div>
+                <div className="absolute left-1/2 -translate-x-1/2 top-full w-0 h-0 border-l-[5px] border-r-[5px] border-t-[5px] border-transparent border-t-white"></div>
+                <div className="absolute left-1/2 -translate-x-1/2 top-full -mt-[1px] w-0 h-0 border-l-[5px] border-r-[5px] border-t-[5px] border-transparent border-t-gray-200"></div>
               </div>
             </button>
           )}
@@ -655,9 +905,10 @@ const AIChat: React.FC<AIChatProps> = ({ currentFile, fileTreeData, onClose, onN
               className="group relative w-8 h-8 flex items-center justify-center text-cyan-600 hover:text-cyan-700 hover:bg-cyan-50 rounded-lg transition-colors"
             >
               <ClipboardCheck size={16} />
-              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2.5 py-1.5 bg-gray-900 text-white text-xs font-medium rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-0 z-50 shadow-lg">
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-white border border-gray-200 text-gray-900 text-xs font-medium rounded-xl whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-200 z-50 shadow-lg">
                 AI 测验
-                <div className="absolute left-1/2 -translate-x-1/2 top-full w-0 h-0 border-l-[5px] border-r-[5px] border-t-[5px] border-transparent border-t-gray-900"></div>
+                <div className="absolute left-1/2 -translate-x-1/2 top-full w-0 h-0 border-l-[5px] border-r-[5px] border-t-[5px] border-transparent border-t-white"></div>
+                <div className="absolute left-1/2 -translate-x-1/2 top-full -mt-[1px] w-0 h-0 border-l-[5px] border-r-[5px] border-t-[5px] border-transparent border-t-gray-200"></div>
               </div>
             </button>
           )}
@@ -680,9 +931,10 @@ const AIChat: React.FC<AIChatProps> = ({ currentFile, fileTreeData, onClose, onN
                     className="group/remove relative ml-0.5 w-5 h-5 rounded-full bg-gray-200/60 hover:bg-gray-300/80 flex items-center justify-center text-gray-600 hover:text-gray-800 opacity-0 group-hover:opacity-100 transition-all duration-200 active:scale-95"
                   >
                     <X size={10} />
-                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2.5 py-1.5 bg-gray-900 text-white text-xs font-medium rounded-lg whitespace-nowrap opacity-0 group-hover/remove:opacity-100 pointer-events-none transition-opacity duration-0 z-50 shadow-lg">
+                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-white border border-gray-200 text-gray-900 text-xs font-medium rounded-xl whitespace-nowrap opacity-0 group-hover/remove:opacity-100 pointer-events-none transition-opacity duration-200 z-50 shadow-lg">
                       移除
-                      <div className="absolute left-1/2 -translate-x-1/2 top-full w-0 h-0 border-l-[5px] border-r-[5px] border-t-[5px] border-transparent border-t-gray-900"></div>
+                      <div className="absolute left-1/2 -translate-x-1/2 top-full w-0 h-0 border-l-[5px] border-r-[5px] border-t-[5px] border-transparent border-t-white"></div>
+                      <div className="absolute left-1/2 -translate-x-1/2 top-full -mt-[1px] w-0 h-0 border-l-[5px] border-r-[5px] border-t-[5px] border-transparent border-t-gray-200"></div>
                     </div>
                   </button>
                 </div>
@@ -705,18 +957,20 @@ const AIChat: React.FC<AIChatProps> = ({ currentFile, fileTreeData, onClose, onN
                 className="group/atfile relative flex items-center justify-center w-7 h-7 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
               >
                 <AtSign size={16} />
-                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2.5 py-1.5 bg-gray-900 text-white text-xs font-medium rounded-lg whitespace-nowrap opacity-0 group-hover/atfile:opacity-100 pointer-events-none transition-opacity duration-0 z-50 shadow-lg">
+                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-white border border-gray-200 text-gray-900 text-xs font-medium rounded-xl whitespace-nowrap opacity-0 group-hover/atfile:opacity-100 pointer-events-none transition-opacity duration-200 z-50 shadow-lg">
                   @文件
-                  <div className="absolute left-1/2 -translate-x-1/2 top-full w-0 h-0 border-l-[5px] border-r-[5px] border-t-[5px] border-transparent border-t-gray-900"></div>
+                  <div className="absolute left-1/2 -translate-x-1/2 top-full w-0 h-0 border-l-[5px] border-r-[5px] border-t-[5px] border-transparent border-t-white"></div>
+                  <div className="absolute left-1/2 -translate-x-1/2 top-full -mt-[1px] w-0 h-0 border-l-[5px] border-r-[5px] border-t-[5px] border-transparent border-t-gray-200"></div>
                 </div>
               </button>
               <button 
                 className="group/search relative flex items-center justify-center w-7 h-7 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
               >
                 <Search size={16} />
-                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2.5 py-1.5 bg-gray-900 text-white text-xs font-medium rounded-lg whitespace-nowrap opacity-0 group-hover/search:opacity-100 pointer-events-none transition-opacity duration-0 z-50 shadow-lg">
+                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-white border border-gray-200 text-gray-900 text-xs font-medium rounded-xl whitespace-nowrap opacity-0 group-hover/search:opacity-100 pointer-events-none transition-opacity duration-200 z-50 shadow-lg">
                   网络搜索
-                  <div className="absolute left-1/2 -translate-x-1/2 top-full w-0 h-0 border-l-[5px] border-r-[5px] border-t-[5px] border-transparent border-t-gray-900"></div>
+                  <div className="absolute left-1/2 -translate-x-1/2 top-full w-0 h-0 border-l-[5px] border-r-[5px] border-t-[5px] border-transparent border-t-white"></div>
+                  <div className="absolute left-1/2 -translate-x-1/2 top-full -mt-[1px] w-0 h-0 border-l-[5px] border-r-[5px] border-t-[5px] border-transparent border-t-gray-200"></div>
                 </div>
               </button>
               {inputValue.trim() && (
@@ -726,9 +980,10 @@ const AIChat: React.FC<AIChatProps> = ({ currentFile, fileTreeData, onClose, onN
                   className="group/send relative w-7 h-7 rounded-lg flex items-center justify-center transition-all duration-300 bg-sky-400 text-white shadow-lg shadow-sky-400/30 hover:bg-sky-500 active:scale-95"
                 >
                   <Send size={16} />
-                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2.5 py-1.5 bg-gray-900 text-white text-xs font-medium rounded-lg whitespace-nowrap opacity-0 group-hover/send:opacity-100 pointer-events-none transition-opacity duration-0 z-50 shadow-lg">
+                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-white border border-gray-200 text-gray-900 text-xs font-medium rounded-xl whitespace-nowrap opacity-0 group-hover/send:opacity-100 pointer-events-none transition-opacity duration-200 z-50 shadow-lg">
                     发送
-                    <div className="absolute left-1/2 -translate-x-1/2 top-full w-0 h-0 border-l-[5px] border-r-[5px] border-t-[5px] border-transparent border-t-gray-900"></div>
+                    <div className="absolute left-1/2 -translate-x-1/2 top-full w-0 h-0 border-l-[5px] border-r-[5px] border-t-[5px] border-transparent border-t-white"></div>
+                    <div className="absolute left-1/2 -translate-x-1/2 top-full -mt-[1px] w-0 h-0 border-l-[5px] border-r-[5px] border-t-[5px] border-transparent border-t-gray-200"></div>
                   </div>
                 </button>
               )}
@@ -739,9 +994,10 @@ const AIChat: React.FC<AIChatProps> = ({ currentFile, fileTreeData, onClose, onN
               className="group/voice relative w-7 h-7 rounded-lg flex items-center justify-center transition-all duration-300 text-gray-600 hover:text-gray-900 hover:bg-gray-100"
             >
               <Mic size={16} />
-              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2.5 py-1.5 bg-gray-900 text-white text-xs font-medium rounded-lg whitespace-nowrap opacity-0 group-hover/voice:opacity-100 pointer-events-none transition-opacity duration-0 z-50 shadow-lg">
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-white border border-gray-200 text-gray-900 text-xs font-medium rounded-xl whitespace-nowrap opacity-0 group-hover/voice:opacity-100 pointer-events-none transition-opacity duration-200 z-50 shadow-lg">
                 语音输入
-                <div className="absolute left-1/2 -translate-x-1/2 top-full w-0 h-0 border-l-[5px] border-r-[5px] border-t-[5px] border-transparent border-t-gray-900"></div>
+                <div className="absolute left-1/2 -translate-x-1/2 top-full w-0 h-0 border-l-[5px] border-r-[5px] border-t-[5px] border-transparent border-t-white"></div>
+                <div className="absolute left-1/2 -translate-x-1/2 top-full -mt-[1px] w-0 h-0 border-l-[5px] border-r-[5px] border-t-[5px] border-transparent border-t-gray-200"></div>
               </div>
             </button>
           </div>
